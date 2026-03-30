@@ -738,6 +738,7 @@ const BUILTIN_TYPES = {
   ALTERYX:  {label:'Alteryx Workflow', color:'#00a6e0', bg:'rgba(0,166,224,.15)',   lang:'alteryx',    noCode:true,  section:'code',  builtin:true},
   ALTXSCHED:{label:'Alteryx Schedule', color:'#0082b3', bg:'rgba(0,130,179,.15)',   lang:'alteryx',    noCode:true,  section:'job',   builtin:true},
   QLIK:     {label:'Qlik',             color:'#52cc74', bg:'rgba(82,204,116,.15)',  lang:'qlik',       noCode:true,  section:'code',  builtin:true},
+  EPICINTERFACE:{label:'Epic Interface',color:'#e06c75', bg:'rgba(224,108,117,.15)',lang:'text',       noCode:true,  section:'job',   builtin:true},
 };
 
 function getCustomTypes(){ return JSON.parse(localStorage.getItem('isJobCustomTypes')||'{}'); }
@@ -779,6 +780,161 @@ const ENV_META = {
 };
 
 let jobs = JSON.parse(localStorage.getItem('isJobs') || 'null') || [
+  {id:1774907976168,name:'CS_Monthly_Move',desc:'Routes CareSource payer files to organized folders with archiving, logging, and email notification.',type:'BAT',env:'PROD',schedule:'Monthly — 11th at 2:00 AM',owner:'Cliff Skinner',server:'N:\\RegulatoryPrograms\\Analytics\\Value Base Payor Jobs',status:'disabled',tags:[],customer:'Kelly McCann',customerContact:'Kelly.Mccann@osumc.edu',
+   purpose:'This batch job automates the routing of CareSource payer files from the centralized Payor Monthly Reports directory into structured year/month folders based on file type, including Medicaid Attribution, Marketplace Attribution, and Paid Claims. The process dynamically identifies the most recent files using naming patterns, moves them to their appropriate destination folders, and creates an archive copy for retention. A history file is maintained to prevent duplicate processing, and all activity is logged for audit and troubleshooting purposes. Upon completion, the job sends an email notification indicating whether files were processed and includes the log file for review.',
+   code:`@echo off
+setlocal EnableDelayedExpansion
+
+REM ==================================================
+REM CARESOURCE FILE ROUTING AUTOMATION
+REM ==================================================
+
+set BASE=\\\\osumc.edu\\dfs\\Shared\\Shared.Services\\Information.Systems\\VALUE_BASED_PROGRAMS\\Claims and Rosters\\CareSource
+set SOURCE=%BASE%\\Payor Monthly Reports
+
+REM GET YEAR / MONTH
+
+for /f %%i in ('powershell -command "(Get-Date).Year"') do set YEAR=%%i
+for /f %%i in ('powershell -command "(Get-Date).ToString(\"MM\")"') do set MONTH=%%i
+
+REM DESTINATIONS
+
+set MEDICAID_ATTRIB=%BASE%\\Medicaid\\Attribution\\%YEAR%\\%MONTH%
+set MARKET_ATTRIB=%BASE%\\Marketplace\\Attribution Files\\%YEAR%\\%MONTH%
+set PAIDCLAIMS=%BASE%\\Paid Claim Files\\%YEAR%\\%MONTH%
+
+set ARCHIVE=%BASE%\\Archive\\%YEAR%\\%MONTH%
+
+REM LOG LOCATION
+
+set LOGDIR=%BASE%\\log
+if not exist "%LOGDIR%" mkdir "%LOGDIR%"
+
+set LOGFILE=%LOGDIR%\\CareSource_FileRouting_%YEAR%%MONTH%.log
+set HISTORY=%LOGDIR%\\processed_files.txt
+
+if not exist "%HISTORY%" type nul > "%HISTORY%"
+
+set FILECOUNT=0
+
+echo =============================================== >> "%LOGFILE%"
+echo CARESOURCE FILE ROUTING STARTED %DATE% %TIME% >> "%LOGFILE%"
+echo =============================================== >> "%LOGFILE%"
+
+mkdir "%MEDICAID_ATTRIB%" 2>nul
+mkdir "%MARKET_ATTRIB%" 2>nul
+mkdir "%PAIDCLAIMS%" 2>nul
+mkdir "%ARCHIVE%" 2>nul
+
+REM ==================================================
+REM PROCESS FUNCTION
+REM ==================================================
+
+goto MAIN
+
+:PROCESSFILE
+
+set FILEPATH=%~1
+set DEST=%~2
+set LABEL=%~3
+
+if "%FILEPATH%"=="" exit /b
+
+set FILENAME=%~nx1
+
+findstr /i "!FILENAME!" "%HISTORY%" >nul
+
+if errorlevel 1 (
+
+echo Moving !FILENAME! to %LABEL% >> "%LOGFILE%"
+
+copy "%FILEPATH%" "%ARCHIVE%" >nul
+move "%FILEPATH%" "%DEST%" >nul
+
+echo !FILENAME!>>"%HISTORY%"
+
+set /a FILECOUNT+=1
+
+) else (
+
+echo Skipping duplicate !FILENAME! >> "%LOGFILE%"
+
+)
+
+exit /b
+
+:MAIN
+
+for /f "delims=" %%F in ('powershell -command "(Get-ChildItem \"%SOURCE%\\*OHMD_Roster*.csv\" | Sort LastWriteTime -Descending | Select -First 1).FullName"') do call :PROCESSFILE "%%F" "%MEDICAID_ATTRIB%" "Medicaid Attribution"
+
+for /f "delims=" %%F in ('powershell -command "(Get-ChildItem \"%SOURCE%\\*OHH_Roster*.xls*\" | Sort LastWriteTime -Descending | Select -First 1).FullName"') do call :PROCESSFILE "%%F" "%MARKET_ATTRIB%" "Marketplace Attribution"
+
+for %%T in (OSU_capitation OSU_claims OSU_member_demo OSU_memberqualityresults OSU_memberrevenueexpense OSU_premium OSU_provider OSU_rx) do (
+for /f "delims=" %%F in ('powershell -command "(Get-ChildItem \"%SOURCE%\\%%T*\" | Sort LastWriteTime -Descending | Select -First 1).FullName"') do call :PROCESSFILE "%%F" "%PAIDCLAIMS%" "Paid Claims"
+)
+
+echo =============================================== >> "%LOGFILE%"
+echo JOB COMPLETED %DATE% %TIME% >> "%LOGFILE%"
+echo =============================================== >> "%LOGFILE%"
+
+if %FILECOUNT% GTR 0 (
+powershell -command "Send-MailMessage -To 'cliff.skinner@osumc.edu','Kelly.Mccann@osumc.edu' -From 'cliff.skinner@osumc.edu' -Subject 'CareSource File Routing - Files Processed' -Body 'CareSource routing completed.' -Attachments '%LOGFILE%' -SmtpServer 'smtp.osumc.edu'"
+) else (
+powershell -command "Send-MailMessage -To 'cliff.skinner@osumc.edu','Kelly.Mccann@osumc.edu' -From 'cliff.skinner@osumc.edu' -Subject 'CareSource File Routing - No New Files' -Body 'CareSource routing completed. No new files.' -Attachments '%LOGFILE%' -SmtpServer 'smtp.osumc.edu'"
+)
+
+exit`,
+   notes:''},
+
+  {id:1774907560583,name:'MMO_Monthly_Move',desc:'MMO PAYOR FILE ROUTING AUTOMATION',type:'BAT',env:'PROD',schedule:'Monthly — 11th at 2:00 AM',owner:'Cliff Skinner',server:'https://alteryx.osumc.edu/gallery/#!/app/MMO_Payer_Monthly_File_Routing/69ae1618c45b6828f416945e',status:'active',tags:[],customer:'Cliff Skinner',customerContact:'614-940-9650',
+   purpose:'This batch job automates the intake and routing of payer files by scanning a centralized Payor Monthly Reports directory, identifying the most recent files by naming pattern, and moving them into structured year/month folders by business category (e.g., Quality Reporting, Attribution, Finance, Utilization, Paid Claims). It maintains an archive copy of all processed files, prevents duplicate processing using a history log, and skips invalid (e.g., zero-byte) files. The job also dynamically creates required folder structures and logs all activity for audit and troubleshooting purposes. Upon completion, it sends an email notification indicating whether files were processed and includes the log for review.',
+   code:`@echo off
+setlocal EnableDelayedExpansion
+
+REM ==================================================
+REM MMO PAYOR FILE ROUTING AUTOMATION
+REM ==================================================
+
+set SOURCE=\\\\osumc.edu\\dfs\\Shared\\Shared.Services\\Information.Systems\\VALUE_BASED_PROGRAMS\\Claims and Rosters\\MMO\\Payor Monthly Reports
+set BASE=\\\\osumc.edu\\dfs\\Shared\\Shared.Services\\Information.Systems\\VALUE_BASED_PROGRAMS\\Claims and Rosters\\MMO
+
+REM GET YEAR / MONTH
+for /f %%i in ('powershell -command "(Get-Date).Year"') do set YEAR=%%i
+for /f %%i in ('powershell -command "(Get-Date).ToString(\"MM\")"') do set MONTH=%%i
+
+REM DESTINATION PATHS
+set COMM_CAREGAP=%BASE%\\Commercial\\Quality Reporting\\%YEAR%\\%MONTH%
+set MED_CAREGAP=%BASE%\\Medicare\\Quality Reporting\\%YEAR%\\%MONTH%
+set COMM_ROSTER=%BASE%\\Commercial\\Attribution\\%YEAR%\\%MONTH%
+set MED_ROSTER=%BASE%\\Medicare\\Attribution\\%YEAR%\\%MONTH%
+set PMPM_DEST=%BASE%\\Finance\\PMPM\\%YEAR%\\%MONTH%
+set UTIL_DEST=%BASE%\\Utilization Reports\\%YEAR%\\%MONTH%
+set MEDADH_DEST=%BASE%\\Medication Adherence\\%YEAR%\\%MONTH%
+set PAIDCLAIMS_DEST=%BASE%\\Paid Claims\\%YEAR%\\%MONTH%
+set ARCHIVE=%BASE%\\Archive\\%YEAR%\\%MONTH%
+
+exit`,
+   notes:''},
+
+  {id:1774906216031,name:'CICIP_COMBINE_ATTRIBUTION_FILES',desc:'Combines CICIP nonop demo with CICIP opioid demo for EPIC VBC Module',type:'ALTERYX',env:'PROD',schedule:'Monthly — 10th at 8:00 AM',owner:'Cliff Skinner',server:'https://alteryx.osumc.edu/gallery/#!/app/CICIP_COMBINE_ATTRIBUTION_FILES/69cae8e4186b6b354335a402',status:'active',tags:[],customer:'Nate Rogers',customerContact:'Nathaniel.Rogers@osumc.edu',
+   purpose:'Combines CICIP nonop demo with CICIP opioid demo for EPIC VBC Module',
+   workflowPath:'https://alteryx.osumc.edu/gallery/#!/app/CICIP_COMBINE_ATTRIBUTION_FILES/69cae8e4186b6b354335a402',
+   inputSources:'\\\\osumc.edu\\dfs\\Shared\\Shared.Services\\Information.Systems\\VALUE_BASED_PROGRAMS\\Claims and Rosters\\CICIP\\Templates\\cicip_nonop_demographics.csv\n\n\\\\osumc.edu\\dfs\\Shared\\Shared.Services\\Information.Systems\\VALUE_BASED_PROGRAMS\\Claims and Rosters\\CICIP\\Templates\\cicip_opioid_demographics_Template.csv',
+   outputTargets:'\\\\osumc.edu\\dfs\\Shared\\Shared.Services\\Information.Systems\\VALUE_BASED_PROGRAMS\\Claims and Rosters\\CICIP\\Attribution (demographic)\\.csv',
+   alteryxVersion:'',code:'',notes:''},
+
+  {id:1774905034077,name:'MMO DINE Workflow',desc:'Create the DINE Demo, Events and Medical Adherence files',type:'ALTERYX',env:'PROD',schedule:'Daily at 2:00 AM',owner:'Cliff Skinner',server:'',status:'active',tags:[],customer:'',customerContact:'',
+   purpose:'Populate the MMO Payor Value Base Epic System',
+   workflowPath:'',
+   inputSources:'\\\\osumc.edu\\dfs\\Shared\\Shared.Services\\Information.Systems\\VALUE_BASED_PROGRAMS\\Claims and Rosters\\MMO\\Medicare\\Attribution\\YYYY\\MM\n\n\\\\osumc.edu\\dfs\\Shared\\Shared.Services\\Information.Systems\\VALUE_BASED_PROGRAMS\\Claims and Rosters\\MMO\\Medicare\\Quality Reporting\\YYYY\\MM',
+   outputTargets:'\\\\osp-osupmt-vp01\\Epic_Care_Gaps\\Prod',
+   alteryxVersion:'',code:'',notes:''},
+
+  {id:1774904899738,name:'DINE MMO',desc:'INTERFACE FOR DINE FILES',type:'EPICINTERFACE',env:'PROD',schedule:'Daily at 2:00 AM',owner:'Tim',server:'',status:'active',tags:[],customer:'Nate',customerContact:'',
+   purpose:'Provide correct mapping and delivery of DINE files',
+   deps:[{jobId:1774905034077}],
+   workflowPath:'',inputSources:'',outputTargets:'',alteryxVersion:'',code:'',notes:''},
+
   {id:1,name:'CareSource_Member_Load_Daily',desc:'Loads daily member eligibility data from CareSource flat file into staging tables',type:'SQL',env:'PROD',schedule:'Daily 2:00 AM',owner:'D. Thompson',server:'SQLPROD01',status:'active',tags:['caresource','eligibility','medicare'],
    purpose:'Ensures the production member database is updated daily with the latest CareSource eligibility feed. Downstream jobs (claims matching, quality checks, monthly reporting) depend on this running successfully before 4 AM.',
    code:`-- CareSource Member Load - Daily ETL
@@ -798,15 +954,14 @@ TRUNCATE TABLE stg.CareSource_Members
 -- Load from flat file (pre-loaded via SSIS)
 INSERT INTO stg.CareSource_Members
   (MemberID, LastName, FirstName, DOB, EffDate, TermDate, PlanCode)
-SELECT 
-  MemberID, LastName, FirstName, DOB, 
+SELECT
+  MemberID, LastName, FirstName, DOB,
   EffectiveDate, TerminationDate, PlanCode
 FROM import.CS_Daily_File
 WHERE LoadDate = @RunDate
 
 SET @RecordCount = @@ROWCOUNT
 
--- Upsert to production
 MERGE dbo.Members AS tgt
 USING stg.CareSource_Members AS src
   ON tgt.MemberID = src.MemberID
@@ -820,7 +975,6 @@ VALUES
   (src.MemberID,src.LastName,src.FirstName,src.DOB,
    src.EffDate,src.TermDate,src.PlanCode,GETDATE());
 
--- Log run
 INSERT INTO audit.JobRunLog (JobName,RunDate,RecordCount,Status)
 VALUES ('CareSource_Member_Load',@RunDate,@RecordCount,'SUCCESS')
 
@@ -830,304 +984,111 @@ SELECT @RecordCount AS RecordsLoaded`,
   {id:2,name:'MMO_Supplemental_Submission_Weekly',desc:'Generates and submits MMO Medicare supplemental data to CMS via batch',type:'PS',env:'PROD',schedule:'Monday 5:00 AM',owner:'C. Johnson',server:'APPSRV02',status:'active',tags:['medicare','mmo','supplemental','cms'],
    purpose:'Fulfills CMS Medicare supplemental data submission requirements for the MMO plan. Failure to submit by Monday 8 AM triggers a compliance escalation. Output file must conform to the 837 format spec.',
    code:`# MMO Supplemental Data Submission
-# Generates weekly Medicare supplemental batch for CMS
-
 param(
   [string]$RunDate = (Get-Date -Format 'yyyy-MM-dd'),
   [string]$OutputPath = '\\\\appsrv02\\submissions\\mmo',
   [switch]$DryRun
 )
-
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-
 Write-Host "[$RunDate] Starting MMO Supplemental Submission" -ForegroundColor Cyan
-
-# ── Pull data from SQL ──────────────────────────────────────────
 $connStr = "Server=SQLPROD01;Database=HealthOpsDB;Integrated Security=True"
-$query = @"
-  SELECT MemberID, ClaimID, ServiceDate, DiagCode,
-         ProcCode, AmountBilled, AmountPaid, ProviderNPI
-  FROM   dbo.SupplementalClaims
-  WHERE  SubmissionWeek = DATEPART(wk, '$RunDate')
-    AND  Submitted = 0
-    AND  PlanCode  LIKE 'MMO%'
-"@
-
-$data = Invoke-Sqlcmd -ConnectionString $connStr -Query $query
+$data = Invoke-Sqlcmd -ConnectionString $connStr -Query "SELECT MemberID,ClaimID,ServiceDate,DiagCode,ProcCode,AmountBilled,AmountPaid,ProviderNPI FROM dbo.SupplementalClaims WHERE SubmissionWeek = DATEPART(wk,'$RunDate') AND Submitted=0 AND PlanCode LIKE 'MMO%'"
 Write-Host "  Records to submit: $($data.Count)"
-
-# ── Generate 837 flat file ──────────────────────────────────────
 $outFile = Join-Path $OutputPath "MMO_Supp_$(Get-Date -Format 'yyyyMMdd').txt"
-$lines   = @()
-foreach ($row in $data) {
-  $lines += "$($row.MemberID)|$($row.ClaimID)|$($row.ServiceDate.ToString('yyyyMMdd'))|" +
-            "$($row.DiagCode)|$($row.ProcCode)|$($row.AmountBilled)|$($row.AmountPaid)|$($row.ProviderNPI)"
-}
-
 if (-not $DryRun) {
-  $lines | Out-File $outFile -Encoding ASCII
+  $data | ForEach-Object { "$($_.MemberID)|$($_.ClaimID)|$($_.ServiceDate.ToString('yyyyMMdd'))|$($_.DiagCode)|$($_.ProcCode)|$($_.AmountBilled)|$($_.AmountPaid)|$($_.ProviderNPI)" } | Out-File $outFile -Encoding ASCII
   Write-Host "  File written: $outFile" -ForegroundColor Green
-
-  # Mark as submitted
-  Invoke-Sqlcmd -ConnectionString $connStr -Query @"
-    UPDATE dbo.SupplementalClaims
-    SET Submitted = 1, SubmittedDT = GETDATE(), SubmissionFile = '$outFile'
-    WHERE SubmissionWeek = DATEPART(wk,'$RunDate') AND PlanCode LIKE 'MMO%'
-"@
 } else {
-  Write-Host "  DRY RUN — file not written" -ForegroundColor Yellow
+  Write-Host "  DRY RUN" -ForegroundColor Yellow
 }
-
-Write-Host "[$RunDate] Done. $($data.Count) records processed." -ForegroundColor Green`,
-   notes:'This script requires SqlServer PS module (v21+). Run as svc_healthops service account which has read access to HealthOpsDB and write to \\\\appsrv02\\submissions.\n\nTo test: run with -DryRun flag — will pull data and count records but not write file or mark submitted.\n\nChange Log:\n- 2025-01-08: Parameterized RunDate (C. Johnson)\n- 2024-09-15: Added DryRun switch for testing'},
+Write-Host "[$RunDate] Done." -ForegroundColor Green`,
+   notes:'This script requires SqlServer PS module (v21+). Run as svc_healthops service account.\n\nChange Log:\n- 2025-01-08: Parameterized RunDate (C. Johnson)\n- 2024-09-15: Added DryRun switch for testing'},
 
   {id:3,name:'Archive_ClaimsHistory_Monthly',desc:'Archives claims older than 7 years to cold storage and removes from active DB',type:'SQL',env:'PROD',schedule:'1st of month 11:00 PM',owner:'D. Thompson',server:'SQLPROD01',status:'active',tags:['archive','claims','maintenance'],
    code:`-- Monthly Claims Archive Job
--- Archives claims > 7 years to HealthOpsArchive DB
-
 USE HealthOpsDB
 GO
-
 DECLARE @CutoffDate DATE = DATEADD(YEAR,-7,GETDATE())
-DECLARE @BatchSize  INT  = 5000
-DECLARE @Archived   INT  = 0
-DECLARE @Total      INT
-
-SELECT @Total = COUNT(*)
-FROM   dbo.Claims
-WHERE  ServiceDate < @CutoffDate
-
-PRINT 'Records to archive: ' + CAST(@Total AS VARCHAR)
-
+DECLARE @BatchSize INT = 5000
+DECLARE @Archived INT = 0
+DECLARE @Total INT
+SELECT @Total = COUNT(*) FROM dbo.Claims WHERE ServiceDate < @CutoffDate
 WHILE @Archived < @Total
 BEGIN
-  -- Archive batch
   INSERT INTO HealthOpsArchive.dbo.Claims
-  SELECT TOP (@BatchSize) *
-  FROM   HealthOpsDB.dbo.Claims
-  WHERE  ServiceDate < @CutoffDate
-    AND  ClaimID NOT IN (SELECT ClaimID FROM HealthOpsArchive.dbo.Claims)
-
-  -- Delete archived batch
-  DELETE TOP (@BatchSize)
-  FROM   HealthOpsDB.dbo.Claims
-  WHERE  ServiceDate < @CutoffDate
-
+  SELECT TOP (@BatchSize) * FROM HealthOpsDB.dbo.Claims
+  WHERE ServiceDate < @CutoffDate AND ClaimID NOT IN (SELECT ClaimID FROM HealthOpsArchive.dbo.Claims)
+  DELETE TOP (@BatchSize) FROM HealthOpsDB.dbo.Claims WHERE ServiceDate < @CutoffDate
   SET @Archived = @Archived + @@ROWCOUNT
-  PRINT 'Archived: ' + CAST(@Archived AS VARCHAR) + ' / ' + CAST(@Total AS VARCHAR)
-  
-  WAITFOR DELAY '00:00:02'  -- Throttle I/O
+  WAITFOR DELAY '00:00:02'
 END
-
 INSERT INTO audit.JobRunLog(JobName,RunDate,RecordCount,Status)
 VALUES('Archive_ClaimsHistory',GETDATE(),@Archived,'SUCCESS')`,
-   notes:'Runs in batches of 5000 with 2s delay to limit I/O impact. Requires linked server to HealthOpsArchive. Estimated runtime: 45-90 min depending on volume. Alert DBA if > 2 hours.'},
+   notes:'Runs in batches of 5000 with 2s delay to limit I/O impact. Requires linked server to HealthOpsArchive. Estimated runtime: 45-90 min.'},
 
   {id:4,name:'Deploy_ETL_Packages',desc:'Deploys SSIS packages from build server to SSISDB on SQLPROD01',type:'BAT',env:'PROD',schedule:'On demand',owner:'IT Deploy',server:'BUILDSRV01',status:'active',tags:['deploy','ssis','devops'],
    code:`@echo off
 REM SSIS Package Deployment Script
-REM Usage: deploy_etl.bat [PackageName] [Environment]
-
 setlocal enabledelayedexpansion
-
 set PACKAGE=%1
 set ENV=%2
 set SSISDB=SQLPROD01
-set CATALOG=SSISDB
-set FOLDER=HealthOps
-
-if "%PACKAGE%"=="" (
-  echo ERROR: Package name required
-  echo Usage: deploy_etl.bat PackageName [PROD^|UAT^|DEV]
-  exit /b 1
-)
-
+if "%PACKAGE%"=="" (echo ERROR: Package name required & exit /b 1)
 if "%ENV%"=="" set ENV=UAT
-
-echo ============================================
-echo  SSIS Deployment: %PACKAGE%
-echo  Target:  %SSISDB% / %FOLDER%
-echo  Env:     %ENV%
-echo ============================================
-
-REM Find .ispac file
-set ISPAC=\\buildsrv01\\drops\\latest\\%PACKAGE%.ispac
-if not exist "%ISPAC%" (
-  echo ERROR: Package not found: %ISPAC%
-  exit /b 2
-)
-
-REM Deploy via isdeploymentwizard
-"C:\\Program Files\\Microsoft SQL Server\\150\\DTS\\Binn\\isdeploymentwizard.exe" ^
-  /Silent ^
-  /SourceType:File ^
-  /SourcePath:"%ISPAC%" ^
-  /DestinationServer:"%SSISDB%" ^
-  /DestinationPath:"/%CATALOG%/%FOLDER%/%PACKAGE%"
-
-if %ERRORLEVEL%==0 (
-  echo SUCCESS: %PACKAGE% deployed to %ENV%
-) else (
-  echo FAILED: Deployment error %ERRORLEVEL%
-  exit /b %ERRORLEVEL%
-)`,
-   notes:'Run from BUILDSRV01 as domain admin. Package must be built first via Visual Studio / Azure DevOps pipeline.\n\nExample:\n  deploy_etl.bat CS_FlatFile_Import PROD\n  deploy_etl.bat MMO_Claims_Extract UAT'},
+"C:\\Program Files\\Microsoft SQL Server\\150\\DTS\\Binn\\isdeploymentwizard.exe" /Silent /SourceType:File /SourcePath:"%PACKAGE%.ispac" /DestinationServer:"%SSISDB%" /DestinationPath:"/SSISDB/HealthOps/%PACKAGE%"
+if %ERRORLEVEL%==0 (echo SUCCESS: %PACKAGE% deployed) else (echo FAILED & exit /b %ERRORLEVEL%)`,
+   notes:'Run from BUILDSRV01 as domain admin.'},
 
   {id:5,name:'Member_Data_Quality_Check',desc:'Validates member data completeness and flags anomalies before monthly CMS submission',type:'PY',env:'UAT',schedule:'Monthly, day before submission',owner:'C. Johnson',server:'APPSRV02',status:'active',tags:['data-quality','validation','cms','medicare'],
    code:`#!/usr/bin/env python3
-"""
-Member Data Quality Check
-Validates member records before CMS submission.
-Outputs QC report to \\\\reports\\dq\\
-"""
-
-import pyodbc
-import pandas as pd
-from datetime import date, datetime
-import smtplib
-from email.mime.text import MIMEText
-
-CONN_STR = (
-    "DRIVER={SQL Server};"
-    "SERVER=SQLPROD01;"
-    "DATABASE=HealthOpsDB;"
-    "Trusted_Connection=yes;"
-)
-
-THRESHOLDS = {
-    "missing_dob_pct":    0.01,   # < 1% missing DOB
-    "missing_npi_pct":    0.02,   # < 2% missing provider NPI
-    "future_term_pct":    0.05,   # < 5% term date in future
-    "dup_member_count":   0,      # Zero duplicates allowed
-}
-
-def run_checks(conn):
-    checks = {}
-    df = pd.read_sql("SELECT * FROM dbo.Members WHERE Active = 1", conn)
-    total = len(df)
-    
-    # Missing DOB
-    missing_dob = df["DOB"].isna().sum()
-    checks["missing_dob_pct"] = missing_dob / total
-    
-    # Missing NPI
-    missing_npi = df["ProviderNPI"].isna().sum()
-    checks["missing_npi_pct"] = missing_npi / total
-    
-    # Future term dates
-    future_term = (pd.to_datetime(df["TermDate"]) > pd.Timestamp.now()).sum()
-    checks["future_term_pct"] = future_term / total
-    
-    # Duplicate MemberIDs
-    checks["dup_member_count"] = df["MemberID"].duplicated().sum()
-    
-    return checks, total
-
-def evaluate(checks):
-    failures = []
-    warnings = []
-    for metric, value in checks.items():
-        threshold = THRESHOLDS.get(metric)
-        if threshold is None:
-            continue
-        if value > threshold:
-            failures.append(f"FAIL  {metric}: {value:.4f} > threshold {threshold}")
-        elif value > threshold * 0.8:
-            warnings.append(f"WARN  {metric}: {value:.4f} approaching threshold {threshold}")
-    return failures, warnings
-
-if __name__ == "__main__":
-    conn = pyodbc.connect(CONN_STR)
-    checks, total = run_checks(conn)
-    failures, warnings = evaluate(checks)
-    
-    print(f"\\n=== Data Quality Report — {date.today()} ===")
-    print(f"Total active members: {total:,}")
-    for f in failures:  print(f"  {f}")
-    for w in warnings:  print(f"  {w}")
-    if not failures and not warnings:
-        print("  All checks PASSED")
-    
-    conn.close()
-    exit(1 if failures else 0)`,
-   notes:'Requires pyodbc and pandas. Run as svc_healthops.\n\nExit codes: 0 = all pass, 1 = one or more checks failed.\n\nIntegrate with Azure DevOps pipeline to block submission if exit code = 1.'},
+import pyodbc, pandas as pd
+from datetime import date
+CONN_STR = "DRIVER={SQL Server};SERVER=SQLPROD01;DATABASE=HealthOpsDB;Trusted_Connection=yes;"
+THRESHOLDS = {"missing_dob_pct":0.01,"missing_npi_pct":0.02,"future_term_pct":0.05,"dup_member_count":0}
+conn = pyodbc.connect(CONN_STR)
+df = pd.read_sql("SELECT * FROM dbo.Members WHERE Active = 1", conn)
+total = len(df)
+checks = {"missing_dob_pct":df["DOB"].isna().sum()/total,"missing_npi_pct":df["ProviderNPI"].isna().sum()/total,"dup_member_count":df["MemberID"].duplicated().sum()}
+failures = [f"FAIL {k}: {v:.4f} > {THRESHOLDS[k]}" for k,v in checks.items() if v > THRESHOLDS[k]]
+print(f"Data Quality Report {date.today()} — {total:,} members")
+for f in failures: print(f"  {f}")
+if not failures: print("  All checks PASSED")
+conn.close()
+exit(1 if failures else 0)`,
+   notes:'Requires pyodbc and pandas. Run as svc_healthops.'},
 
   {id:6,name:'CS_FlatFile_Import',desc:'SSIS package: imports CareSource flat files from SFTP into staging tables',type:'SSIS',env:'PROD',schedule:'Daily 1:30 AM',owner:'D. Thompson',server:'SQLPROD01 / SSISDB',status:'active',tags:['caresource','ssis','sftp','staging'],
    code:`<!-- SSIS Package: CS_FlatFile_Import -->
-<!-- Source: SFTP \\sftp01\\caresource\\daily\ -->
-<!-- Destination: HealthOpsDB.import.CS_Daily_File -->
+<!-- Source: SFTP sftp01/caresource/daily -->
+<!-- Destination: HealthOpsDB.import.CS_Daily_File -->`,
+   notes:'Package deployed to SSISDB on SQLPROD01 via deploy_etl.bat. File format: pipe-delimited, UTF-8, no header row.'},
 
-<Executable DTS:ExecutableType="SSIS.Package">
-  <Property DTS:Name="PackageName">CS_FlatFile_Import</Property>
-  <Property DTS:Name="PackageFormatVersion">8</Property>
-
-  <Connections>
-    <!-- SFTP Connection -->
-    <Connection DTS:ConnectionType="FTPCONN"
-                DTS:Name="SFTP_CareSource"
-                DTS:ServerName="sftp.caresource.com"
-                DTS:UserName="hs_etl_svc" />
-
-    <!-- SQL Destination -->
-    <Connection DTS:ConnectionType="OLEDB"
-                DTS:Name="SQLPROD01_HealthOps"
-                DTS:ServerName="SQLPROD01"
-                DTS:InitialCatalog="HealthOpsDB" />
-  </Connections>
-
-  <Executables>
-    <!-- Task 1: Download file -->
-    <Executable DTS:ExecutableType="Microsoft.SqlServer.Dts.Tasks.FtpTask.FtpTask">
-      <Property DTS:Name="TaskName">Download_CS_File</Property>
-      <Property DTS:Name="IsDownloadOperation">True</Property>
-      <Property DTS:Name="RemotePath">/outbound/daily/</Property>
-      <Property DTS:Name="LocalPath">\\\\etlsrv01\\landing\\caresource\\</Property>
-    </Executable>
-
-    <!-- Task 2: Truncate staging -->
-    <Executable DTS:ExecutableType="Microsoft.SqlServer.Dts.Tasks.ExecuteSQLTask.ExecuteSQLTask">
-      <Property DTS:Name="TaskName">Truncate_Staging</Property>
-      <Property DTS:Name="SqlStatementSource">
-        TRUNCATE TABLE import.CS_Daily_File
-      </Property>
-    </Executable>
-
-    <!-- Task 3: Data Flow - Flat file to SQL -->
-    <Executable DTS:ExecutableType="SSIS.Pipeline">
-      <Property DTS:Name="TaskName">Load_FlatFile_to_SQL</Property>
-      <!-- Flat File Source → Derived Column (trim/clean) → OLE DB Dest -->
-    </Executable>
-  </Executables>
-</Executable>`,
-   notes:'Package is deployed to SSISDB on SQLPROD01 via deploy_etl.bat. File format: pipe-delimited, UTF-8, no header row.\n\nField order: MemberID|LastName|FirstName|DOB|EffectiveDate|TerminationDate|PlanCode\n\nIf SFTP download fails, package sends alert to HealthOps-DL@company.com and exits with code 2.'},
   {id:7,name:'CareSource_Member_Eligibility_Blend',desc:'Blends CareSource member eligibility with claims history for monthly analytics report',type:'ALTERYX',env:'PROD',schedule:'Monthly, 1st business day',owner:'C. Johnson',server:'ALTX-PROD01',status:'active',tags:['caresource','eligibility','analytics','blend'],
-   purpose:'Produces the monthly member eligibility summary used by the analytics team and reported to leadership. Combines raw eligibility feed with 12-month claims history to calculate utilization metrics per member.',
+   purpose:'Produces the monthly member eligibility summary used by the analytics team and reported to leadership.',
    workflowPath:'\\\\altx-prod01\\workflows\\CareSource\\CS_Member_Elig_Blend_v3.yxmd',
-   inputSources:'HealthOpsDB.dbo.Members (ODBC), HealthOpsDB.dbo.Claims (ODBC), \\\\sftp01\\caresource\\monthly\\elig_full.csv',
-   outputTargets:'HealthOpsDB.rpt.CS_Member_Monthly (SQL), \\\\reports\\caresource\\monthly\\elig_summary.xlsx',
-   alteryxVersion:'Alteryx Designer 2023.2',
-   code:'',
-   notes:'Workflow uses an in-database tool for the claims join — do not run on a local machine, must run on server with ODBC connection to SQLPROD01.\n\nRun time ~18 minutes. If the source CSV is missing, workflow will error on the Input Data tool on canvas row 3.\n\nChange Log:\n- 2025-02-10: Updated blend logic to include TermDate filter (C. Johnson)\n- 2024-10-01: Migrated to Alteryx Server 2023.2'},
+   inputSources:'HealthOpsDB.dbo.Members (ODBC), HealthOpsDB.dbo.Claims (ODBC)',
+   outputTargets:'HealthOpsDB.rpt.CS_Member_Monthly (SQL)',
+   alteryxVersion:'Alteryx Designer 2023.2',code:'',
+   notes:'Workflow uses an in-database tool for the claims join — do not run on a local machine.\n\nChange Log:\n- 2025-02-10: Updated blend logic to include TermDate filter (C. Johnson)\n- 2024-10-01: Migrated to Alteryx Server 2023.2'},
 
-  {id:8,name:'Health_Ops_Executive_Dashboard',desc:'Qlik Sense app showing KPI dashboard for Health Data Ops leadership — member counts, claim volumes, submission status',type:'QLIK',env:'PROD',schedule:'Auto-refresh every 4 hours',owner:'D. Thompson',server:'QLIK-PROD01 / QMC',status:'active',tags:['dashboard','kpi','executive','medicare','claims'],
-   purpose:'Primary executive-facing dashboard used in weekly leadership meetings. Shows live member counts by plan (CareSource, MMO), claim submission status, data quality scores, and trend lines vs prior month.',
+  {id:8,name:'Health_Ops_Executive_Dashboard',desc:'Qlik Sense app showing KPI dashboard for Health Data Ops leadership',type:'QLIK',env:'PROD',schedule:'Auto-refresh every 4 hours',owner:'D. Thompson',server:'QLIK-PROD01 / QMC',status:'active',tags:['dashboard','kpi','executive','medicare','claims'],
+   purpose:'Primary executive-facing dashboard used in weekly leadership meetings.',
    workflowPath:'Qlik Sense Hub > Health Data Operations > Health Ops Executive Dashboard',
-   inputSources:'HealthOpsDB (Direct Query), audit.JobRunLog, rpt.CS_Member_Monthly, rpt.MMO_Supplemental_Status',
+   inputSources:'HealthOpsDB (Direct Query), audit.JobRunLog, rpt.CS_Member_Monthly',
    outputTargets:'Qlik Sense Hub (published), embedded in SharePoint via iframe',
-   alteryxVersion:'Qlik Sense Enterprise Nov 2023',
-   code:'',
-   notes:'App is published to the "Health Data Ops" stream. Only users in the HDO-Analytics AD group can access.\n\nData connection: "HealthOps_PROD_DirectQuery" — managed in QMC by IT. If data stops refreshing, check the task "HealthOps_Full_Reload" in QMC Scheduler.\n\nChange Log:\n- 2025-01-20: Added MMO Supplemental submission tracker sheet\n- 2024-11-05: Rebuilt claims volume chart with Set Analysis for YTD'},
+   alteryxVersion:'Qlik Sense Enterprise Nov 2023',code:'',
+   notes:'App is published to the "Health Data Ops" stream. Only users in the HDO-Analytics AD group can access.'},
 
   {id:9,name:'MMO_Claims_Trend_Analysis',desc:'Qlik Sense app analyzing MMO Medicare claim trends, denial rates, and provider performance',type:'QLIK',env:'UAT',schedule:'On demand / ad hoc',owner:'C. Johnson',server:'QLIK-UAT01 / QMC',status:'active',tags:['mmo','claims','trending','denial','provider'],
-   purpose:'Used by the clinical analytics team to investigate MMO claim denial patterns and provider performance outliers. Feeds into quarterly CMS reporting prep and provider corrective action discussions.',
+   purpose:'Used by the clinical analytics team to investigate MMO claim denial patterns and provider performance outliers.',
    workflowPath:'Qlik Sense Hub > UAT > MMO Claims Trend Analysis v2',
    inputSources:'HealthOpsDB.dbo.Claims, HealthOpsDB.dbo.Providers, HealthOpsDB.ref.DenialCodes',
    outputTargets:'Qlik Sense Hub (UAT stream), exported to Excel on demand',
-   alteryxVersion:'Qlik Sense Enterprise Nov 2023',
-   code:'',
-   notes:'Currently in UAT — pending approval to promote to PROD stream. Requires sign-off from Analytics Manager before promotion.\n\nKnown issue: denial rate % calculation does not yet account for resubmissions — flagged for v3.'},
+   alteryxVersion:'Qlik Sense Enterprise Nov 2023',code:'',
+   notes:'Currently in UAT — pending approval to promote to PROD stream.'},
 ];
+
 
 let currentFilter = {view:'all', type:null, env:null, chip:'all'};
 let activeJobId = null;
@@ -1496,16 +1457,32 @@ function renderDetailTab(){
       : `<button class="promo-btn at-prod" disabled>✓ In Production</button>`;
 
     body.innerHTML=`
-      <div class="doc-field"><div class="doc-label">Job Name</div><div class="doc-value">${j.name}</div></div>
+      <div class="doc-field">
+        <div class="doc-label">Job Name</div>
+        <div class="doc-value"><input style="background:none;border:none;color:var(--text);font-family:inherit;font-size:13px;font-weight:500;outline:none;width:100%" value="${esc(j.name||'')}" placeholder="Job name" onblur="saveInfoField(${j.id},'name',this.value)"></div>
+      </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div class="doc-field"><div class="doc-label">Type</div><div class="doc-value">${typeBadge(j.type)}</div></div>
-        <div class="doc-field"><div class="doc-label">Owner</div><div class="doc-value">${j.owner||'—'}</div></div>
-        <div class="doc-field"><div class="doc-label">Server / Path</div><div class="doc-value">${j.server||'—'}</div></div>
+        <div class="doc-field">
+          <div class="doc-label">Type</div>
+          <div class="doc-value" style="padding:4px 8px">
+            <select style="background:none;border:none;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%;cursor:pointer" onchange="saveInfoField(${j.id},'type',this.value);renderDetailTab()">
+              ${Object.entries(TYPE_META).map(([k,v])=>`<option value="${k}" ${j.type===k?'selected':''}>${v.label}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="doc-field">
+          <div class="doc-label">Owner</div>
+          <div class="doc-value"><input style="background:none;border:none;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%" value="${esc(j.owner||'')}" placeholder="Team member name" onblur="saveInfoField(${j.id},'owner',this.value)"></div>
+        </div>
+        <div class="doc-field">
+          <div class="doc-label">Server / Path</div>
+          <div class="doc-value"><input style="background:none;border:none;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%" value="${esc(j.server||'')}" placeholder="e.g. SQLPROD01 or \\\\server\\path" onblur="saveInfoField(${j.id},'server',this.value)"></div>
+        </div>
         <div class="doc-field">
           <div class="doc-label">Customer / Requestor</div>
           <div class="doc-value" style="display:flex;flex-direction:column;gap:4px">
-            <input style="background:none;border:none;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%" value="${esc(j.customer||'')}" placeholder="e.g. CareSource, Analytics Team" onblur="saveField(${j.id},'customer',this.value)">
-            <input style="background:none;border:none;color:var(--text2);font-family:inherit;font-size:12px;outline:none;width:100%" value="${esc(j.customerContact||'')}" placeholder="Contact name or email" onblur="saveField(${j.id},'customerContact',this.value)">
+            <input style="background:none;border:none;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%" value="${esc(j.customer||'')}" placeholder="e.g. CareSource, Analytics Team" onblur="saveInfoField(${j.id},'customer',this.value)">
+            <input style="background:none;border:none;color:var(--text2);font-family:inherit;font-size:12px;outline:none;width:100%" value="${esc(j.customerContact||'')}" placeholder="Contact name or email" onblur="saveInfoField(${j.id},'customerContact',this.value)">
           </div>
         </div>
       </div>
@@ -1572,6 +1549,25 @@ function renderDetailTab(){
 function saveField(id,field,val){
   const j=jobs.find(x=>x.id===id);
   if(j){j[field]=val;save();}
+}
+function saveInfoField(id,field,val){
+  const j=jobs.find(x=>x.id===id);
+  if(!j) return;
+  j[field]=val;
+  save();
+  renderJobs();
+  // Refresh header badges if name or type changed
+  if(field==='name'||field==='type'){
+    document.getElementById('dpTitle').textContent=j.name;
+    document.getElementById('dpMeta').innerHTML=
+      typeBadge(j.type)+' '+envBadge(j.env)+' '+statusBadge(j.status)+
+      `<span style="font-size:12px;color:var(--text3)">${j.server||''}</span>`;
+  }
+  if(field==='server'){
+    document.getElementById('dpMeta').innerHTML=
+      typeBadge(j.type)+' '+envBadge(j.env)+' '+statusBadge(j.status)+
+      `<span style="font-size:12px;color:var(--text3)">${j.server||''}</span>`;
+  }
 }
 function toggleStatus(id){
   const j=jobs.find(x=>x.id===id);
