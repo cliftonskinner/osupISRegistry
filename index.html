@@ -1,0 +1,2430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IS Job Registry</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;--bg2:#161b22;--bg3:#21262d;--bg4:#30363d;
+  --border:#30363d;--border2:#444c56;
+  --text:#e6edf3;--text2:#8b949e;--text3:#6e7681;
+  --blue:#58a6ff;--blue-bg:#1f3a5f;
+  --green:#3fb950;--green-bg:#1a3a2a;
+  --amber:#d29922;--amber-bg:#3a2a0a;
+  --purple:#bc8cff;--purple-bg:#2d1f5e;
+  --coral:#f0883e;--coral-bg:#3a2000;
+  --teal:#39d353;--teal-bg:#0a2a1a;
+  --red:#f85149;--red-bg:#3a0a0a;
+  --radius:6px;--radius-lg:10px;
+  font-family:'DM Sans',sans-serif;
+}
+body{background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+
+/* Auth */
+.auth-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:999;padding:20px}
+.auth-card{background:var(--bg2);border:1px solid var(--border);border-radius:14px;width:100%;max-width:400px;padding:32px}
+.auth-card.wide{max-width:460px}
+.auth-logo{display:flex;align-items:center;gap:10px;margin-bottom:28px}
+.auth-logo-icon{width:36px;height:36px;background:linear-gradient(135deg,#1f3a5f,#2d1f5e);border:1px solid var(--border2);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.auth-logo-text{font-size:17px;font-weight:600;letter-spacing:-.3px}
+.auth-logo-sub{font-size:12px;color:var(--text3);margin-top:1px}
+.auth-title{font-size:18px;font-weight:600;margin-bottom:6px}
+.auth-sub{font-size:13px;color:var(--text2);margin-bottom:24px}
+.auth-field{margin-bottom:14px}
+.auth-field label{display:block;font-size:12px;font-weight:500;color:var(--text2);margin-bottom:5px}
+.auth-field input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:9px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none;transition:border .15s}
+.auth-field input:focus{border-color:var(--blue)}
+.auth-field input.err{border-color:var(--red)}
+.auth-2col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.auth-btn{width:100%;padding:10px;background:var(--blue-bg);border:1px solid var(--blue);border-radius:var(--radius);color:var(--blue);font-size:14px;font-weight:500;font-family:inherit;cursor:pointer;margin-top:4px;transition:all .15s}
+.auth-btn:hover{background:#1a4a7a}
+.auth-switch{text-align:center;margin-top:18px;font-size:13px;color:var(--text2)}
+.auth-switch a{color:var(--blue);cursor:pointer}
+.auth-switch a:hover{text-decoration:underline}
+.auth-err{background:var(--red-bg);border:1px solid var(--red);border-radius:var(--radius);padding:8px 12px;font-size:12px;color:var(--red);margin-bottom:14px;display:none}
+.auth-err.show{display:block}
+.auth-strength{height:3px;border-radius:2px;margin-top:5px;background:var(--bg4);overflow:hidden}
+.auth-strength-bar{height:100%;border-radius:2px;width:0;transition:width .3s,background .3s}
+.auth-strength-lbl{font-size:11px;color:var(--text3);margin-top:3px}
+/* User menu */
+.user-menu{position:relative}
+.user-avatar{width:30px;height:30px;border-radius:50%;background:var(--blue-bg);border:1px solid var(--blue);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--blue);cursor:pointer;user-select:none;flex-shrink:0}
+.user-dropdown{position:absolute;right:0;top:38px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);width:210px;padding:6px;z-index:300;display:none;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.user-dropdown.open{display:block}
+.udh{padding:8px 10px 10px;border-bottom:1px solid var(--border);margin-bottom:4px}
+.udh-name{font-size:13px;font-weight:500}
+.udh-email{font-size:11px;color:var(--text3);margin-top:2px}
+.udh-role{font-size:11px;color:var(--text3);margin-top:1px}
+.ud-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:var(--radius);font-size:13px;color:var(--text2);cursor:pointer}
+.ud-item:hover{background:var(--bg3);color:var(--text)}
+.ud-item.danger:hover{color:var(--red)}
+/* Admin panel */
+.admin-modal{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);width:640px;max-height:85vh;overflow-y:auto;padding:24px}
+.admin-badge{display:inline-flex;align-items:center;padding:1px 7px;border-radius:4px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;background:rgba(210,153,34,.15);border:1px solid rgba(210,153,34,.3);color:var(--amber)}
+.urow{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:6px}
+.urow-av{width:32px;height:32px;border-radius:50%;background:var(--bg4);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--text2);flex-shrink:0}
+.urow-info{flex:1;min-width:0}
+.urow-name{font-size:13px;font-weight:500;display:flex;align-items:center;gap:6px}
+.urow-meta{font-size:11px;color:var(--text3);margin-top:1px}
+.urow-btns{display:flex;gap:6px;flex-shrink:0}
+.tmpbox{background:var(--amber-bg);border:1px solid var(--amber);border-radius:var(--radius);padding:10px 14px;margin-top:12px;display:none}
+.tmpbox.show{display:block}
+.tmpcode{font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:500;color:var(--amber);letter-spacing:1px;margin:4px 0 6px}
+/* Type manager */
+.type-row{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:5px}
+.type-swatch{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+.type-row-label{flex:1;font-size:13px;font-weight:500}
+.type-row-section{font-size:11px;color:var(--text3);background:var(--bg4);border:1px solid var(--border);border-radius:3px;padding:1px 6px}
+.type-row-btns{display:flex;gap:5px}
+.color-grid{display:grid;grid-template-columns:repeat(9,1fr);gap:5px;margin-top:6px}
+.color-opt{width:24px;height:24px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .1s}
+.color-opt:hover{transform:scale(1.15)}
+.color-opt.selected{border-color:var(--text)}/* Layout */
+.shell{display:grid;grid-template-columns:240px 1fr;grid-template-rows:52px 1fr;height:100vh;overflow:hidden}
+.topbar{grid-column:1/-1;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;padding:0 16px;z-index:10}
+.sidebar{background:var(--bg2);border-right:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column}
+.main{overflow-y:auto;background:var(--bg)}
+
+/* Topbar */
+.logo{font-weight:600;font-size:15px;letter-spacing:-.3px;color:var(--text);display:flex;align-items:center;gap:8px}
+.logo-icon{width:28px;height:28px;background:linear-gradient(135deg,#1f3a5f,#2d1f5e);border:1px solid var(--border2);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px}
+.topbar-search{flex:1;max-width:380px;position:relative}
+.topbar-search input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:6px 10px 6px 32px;color:var(--text);font-size:13px;font-family:inherit;outline:none;transition:border .15s}
+.topbar-search input:focus{border-color:var(--blue)}
+.topbar-search .si{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:13px}
+.topbar-actions{margin-left:auto;display:flex;gap:8px}
+.btn{padding:6px 12px;border-radius:var(--radius);border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-size:13px;font-family:inherit;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:6px}
+.btn:hover{background:var(--bg4);border-color:var(--border2)}
+.btn-primary{background:var(--blue-bg);border-color:var(--blue);color:var(--blue)}
+.btn-primary:hover{background:#1a4a7a}
+
+/* Sidebar */
+.sidebar-section{padding:8px 0}
+.sidebar-label{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;padding:6px 16px 4px}
+.nav-item{display:flex;align-items:center;gap:8px;padding:6px 16px;cursor:pointer;color:var(--text2);font-size:13px;transition:all .1s;border-left:2px solid transparent}
+.nav-item:hover{color:var(--text);background:var(--bg3)}
+.nav-item.active{color:var(--blue);background:rgba(88,166,255,.08);border-left-color:var(--blue)}
+.nav-item .count{margin-left:auto;background:var(--bg4);border-radius:10px;padding:1px 7px;font-size:11px;color:var(--text3)}
+.sidebar-divider{height:1px;background:var(--border);margin:4px 0}
+.type-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+
+/* Main content */
+.content{padding:20px 24px;max-width:1100px}
+.page-header{margin-bottom:20px;display:flex;align-items:center;justify-content:space-between}
+.page-title{font-size:20px;font-weight:600}
+.page-sub{color:var(--text2);font-size:13px;margin-top:3px}
+
+/* Stats row */
+.stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px}
+.stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px 14px}
+.stat-val{font-size:22px;font-weight:600;line-height:1}
+.stat-label{font-size:12px;color:var(--text2);margin-top:4px}
+
+/* Filter bar */
+.filter-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.filter-chip{padding:4px 10px;border-radius:20px;border:1px solid var(--border);background:var(--bg2);color:var(--text2);font-size:12px;cursor:pointer;transition:all .15s}
+.filter-chip:hover{border-color:var(--border2);color:var(--text)}
+.filter-chip.active{border-color:var(--blue);color:var(--blue);background:var(--blue-bg)}
+
+/* Job table */
+.job-table{width:100%;border-collapse:collapse}
+.job-table th{text-align:left;font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;padding:8px 12px;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:0}
+.job-table td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+.job-table tr:hover td{background:var(--bg2)}
+.job-table tr{cursor:pointer;transition:background .1s}
+.job-name{font-weight:500;font-size:13px}
+.job-desc{color:var(--text2);font-size:12px;margin-top:2px}
+.type-badge{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500;white-space:nowrap}
+.status-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500}
+
+/* Detail panel */
+.detail-panel{position:fixed;top:52px;right:0;bottom:0;width:680px;background:var(--bg2);border-left:1px solid var(--border);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .25s cubic-bezier(.4,0,.2,1);z-index:100}
+.detail-panel.open{transform:translateX(0)}
+.detail-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0}
+.detail-title{font-size:16px;font-weight:600}
+.detail-meta{display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap}
+.detail-close{background:none;border:none;color:var(--text2);cursor:pointer;font-size:18px;line-height:1;padding:4px}
+.detail-close:hover{color:var(--text)}
+.detail-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
+.detail-tab{padding:10px 16px;font-size:13px;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
+.detail-tab:hover{color:var(--text)}
+.detail-tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+.detail-body{flex:1;overflow-y:auto;padding:16px 20px}
+
+/* Code block */
+.code-wrap{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden}
+.code-header{background:var(--bg3);padding:8px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+.code-lang{font-size:12px;color:var(--text2);font-family:'IBM Plex Mono',monospace}
+.code-copy{background:none;border:1px solid var(--border);border-radius:4px;color:var(--text2);font-size:11px;padding:3px 8px;cursor:pointer;font-family:inherit;transition:all .15s}
+.code-copy:hover{color:var(--text);border-color:var(--border2)}
+.code-body{padding:14px;overflow-x:auto;font-family:'IBM Plex Mono',monospace;font-size:12.5px;line-height:1.6;color:#e6edf3;white-space:pre}
+/* Syntax highlight classes */
+.kw{color:#ff7b72}.fn{color:#d2a8ff}.str{color:#a5d6ff}.cm{color:#8b949e;font-style:italic}.num{color:#79c0ff}.op{color:#ff7b72}.type{color:#ffa657}.var{color:#e6edf3}
+
+/* Doc section */
+.doc-field{margin-bottom:16px}
+.doc-label{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+.doc-value{font-size:13px;color:var(--text);background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px}
+.doc-value textarea{width:100%;background:none;border:none;color:var(--text);font-family:inherit;font-size:13px;resize:vertical;outline:none;min-height:80px}
+.tag-list{display:flex;flex-wrap:wrap;gap:6px}
+.tag{padding:2px 8px;background:var(--bg4);border:1px solid var(--border2);border-radius:4px;font-size:11px;color:var(--text2)}
+
+/* AI Assistant panel */
+.ai-panel{border-top:1px solid var(--border);flex-shrink:0}
+.ai-toggle{display:flex;align-items:center;gap:8px;padding:10px 20px;cursor:pointer;font-size:13px;color:var(--text2);border:none;background:none;width:100%;text-align:left;transition:color .15s}
+.ai-toggle:hover{color:var(--text)}
+.ai-toggle .ai-icon{width:20px;height:20px;background:var(--purple-bg);border:1px solid var(--purple);border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0}
+.ai-body{padding:0 20px 14px;display:none}
+.ai-body.open{display:block}
+.ai-messages{max-height:220px;overflow-y:auto;margin-bottom:10px;display:flex;flex-direction:column;gap:8px}
+.ai-msg{padding:8px 12px;border-radius:var(--radius);font-size:12.5px;line-height:1.5}
+.ai-msg.user{background:var(--blue-bg);color:var(--text);align-self:flex-end;max-width:90%}
+.ai-msg.assistant{background:var(--bg3);color:var(--text);max-width:95%}
+.ai-msg.loading{color:var(--text2);font-style:italic}
+.ai-input-row{display:flex;gap:6px}
+.ai-input{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:7px 10px;color:var(--text);font-size:12px;font-family:inherit;outline:none}
+.ai-input:focus{border-color:var(--purple)}
+.ai-send{padding:7px 12px;background:var(--purple-bg);border:1px solid var(--purple);border-radius:var(--radius);color:var(--purple);font-size:12px;cursor:pointer;font-family:inherit}
+.ai-send:hover{background:#3d2a7a}
+.ai-quick{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+.ai-quick button{padding:3px 9px;background:var(--bg4);border:1px solid var(--border);border-radius:12px;color:var(--text2);font-size:11px;cursor:pointer;font-family:inherit}
+.ai-quick button:hover{border-color:var(--purple);color:var(--purple)}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:none;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);width:560px;max-height:80vh;overflow-y:auto;padding:20px}
+.modal h2{font-size:16px;font-weight:600;margin-bottom:16px}
+.form-field{margin-bottom:14px}
+.form-label{font-size:12px;font-weight:500;color:var(--text2);margin-bottom:5px;display:block}
+.form-input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:7px 10px;color:var(--text);font-family:inherit;font-size:13px;outline:none}
+.form-input:focus{border-color:var(--blue)}
+.form-input select,.form-select{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:7px 10px;color:var(--text);font-family:inherit;font-size:13px;outline:none;appearance:none}
+.form-select:focus{border-color:var(--blue)}
+textarea.form-input{min-height:90px;resize:vertical;font-family:'IBM Plex Mono',monospace;font-size:12px}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+.empty-state{text-align:center;padding:60px 20px;color:var(--text2)}
+.empty-state .big{font-size:32px;margin-bottom:8px}
+.overlay-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:90;display:none}
+.overlay-bg.open{display:block}
+
+/* Scheduler */
+.sched-row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
+.sched-group{display:flex;flex-direction:column;gap:4px}
+.sched-group label{font-size:11px;color:var(--text3);font-weight:500;text-transform:uppercase;letter-spacing:.5px}
+.sched-group select,.sched-group input[type=time]{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:6px 10px;color:var(--text);font-family:inherit;font-size:13px;outline:none;height:34px}
+.sched-group select:focus,.sched-group input[type=time]:focus{border-color:var(--blue)}
+.sched-summary{margin-top:8px;font-size:12px;color:var(--blue);background:var(--blue-bg);border:1px solid rgba(88,166,255,.25);border-radius:var(--radius);padding:5px 10px;display:inline-block}
+/* Mini calendar for day-of-month picker */
+.cal-wrap{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-lg);padding:10px;margin-top:6px;width:220px}
+.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;font-size:12px;font-weight:500}
+.cal-nav{background:none;border:none;color:var(--text2);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px}
+.cal-nav:hover{background:var(--bg4);color:var(--text)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cal-dow{font-size:10px;color:var(--text3);text-align:center;padding:2px 0;font-weight:600}
+.cal-day{font-size:11px;text-align:center;padding:4px 2px;border-radius:4px;cursor:pointer;color:var(--text2);border:1px solid transparent}
+.cal-day:hover{background:var(--bg4);color:var(--text)}
+.cal-day.selected{background:var(--blue-bg);border-color:var(--blue);color:var(--blue);font-weight:600}
+.cal-day.empty{cursor:default}
+.cal-day.today{border-color:var(--border2)}
+
+/* Dependencies */
+.dep-list{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.dep-item{display:flex;align-items:center;gap:8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:8px 10px}
+.dep-step{width:22px;height:22px;border-radius:50%;background:var(--bg4);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:var(--text2);flex-shrink:0}
+.dep-info{flex:1;min-width:0}
+.dep-name{font-size:12.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dep-meta{font-size:11px;color:var(--text3);margin-top:1px}
+.dep-actions{display:flex;gap:4px;flex-shrink:0}
+.dep-btn{background:none;border:1px solid var(--border);border-radius:4px;color:var(--text3);font-size:11px;padding:2px 6px;cursor:pointer;font-family:inherit}
+.dep-btn:hover{color:var(--text);border-color:var(--border2)}
+.dep-btn.danger:hover{color:var(--red);border-color:var(--red)}
+.dep-add{display:flex;gap:8px;align-items:center;margin-bottom:16px}
+.dep-select{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:7px 10px;color:var(--text);font-family:inherit;font-size:13px;outline:none}
+.dep-select:focus{border-color:var(--blue)}
+/* Flow chain SVG */
+.flow-wrap{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px;overflow-x:auto;margin-top:4px}
+.flow-wrap svg{display:block}
+
+/* Promotion */
+.promo-track{display:flex;align-items:center;gap:0;margin:12px 0 16px}
+.promo-step{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1}
+.promo-dot{width:28px;height:28px;border-radius:50%;border:2px solid var(--border2);background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--text3);transition:all .2s;position:relative;z-index:1}
+.promo-dot.done{background:var(--green-bg);border-color:var(--green);color:var(--green)}
+.promo-dot.current{background:var(--amber-bg);border-color:var(--amber);color:var(--amber);box-shadow:0 0 0 3px rgba(210,153,34,.15)}
+.promo-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text3)}
+.promo-label.done{color:var(--green)}
+.promo-label.current{color:var(--amber)}
+.promo-line{flex:1;height:2px;background:var(--border);margin-top:-18px;position:relative;z-index:0;transition:background .2s}
+.promo-line.done{background:var(--green)}
+.promo-btn{display:flex;align-items:center;gap:8px;padding:9px 16px;background:var(--amber-bg);border:1px solid var(--amber);border-radius:var(--radius);color:var(--amber);font-size:13px;font-family:inherit;cursor:pointer;font-weight:500;transition:all .15s}
+.promo-btn:hover{background:rgba(210,153,34,.25)}
+.promo-btn.to-prod{background:var(--blue-bg);border-color:var(--blue);color:var(--blue)}
+.promo-btn.to-prod:hover{background:rgba(88,166,255,.25)}
+.promo-btn.at-prod{background:var(--green-bg);border-color:var(--green);color:var(--green);cursor:default}
+.promo-history{margin-top:12px}
+.promo-history-item{display:flex;align-items:baseline;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px}
+.promo-history-item:last-child{border-bottom:none}
+.promo-history-env{font-weight:600;min-width:44px}
+.promo-history-date{color:var(--text3);font-size:11px;white-space:nowrap}
+.promo-history-note{color:var(--text2);flex:1}
+.promo-confirm{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px;margin-top:12px;display:none}
+.promo-confirm.open{display:block}
+</style>
+</head>
+<body>
+
+<!-- AUTH SCREENS -->
+<div class="auth-screen" id="authScreen">
+
+  <!-- Sign In -->
+  <div class="auth-card" id="siCard">
+    <div class="auth-logo">
+      <div class="auth-logo-icon">⚙</div>
+      <div><div class="auth-logo-text">IS Job Registry</div><div class="auth-logo-sub">Health Data Operations</div></div>
+    </div>
+    <div class="auth-title">Sign in</div>
+    <div class="auth-sub">Welcome back — sign in to your account</div>
+    <div class="auth-err" id="si-err"></div>
+    <div class="auth-field"><label>Email address</label><input type="email" id="si-email" placeholder="you@company.com" onkeydown="if(event.key==='Enter')signIn()"></div>
+    <div class="auth-field"><label>Password</label><input type="password" id="si-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')signIn()"></div>
+    <button class="auth-btn" onclick="signIn()">Sign in</button>
+    <div class="auth-switch">No account yet? <a onclick="showCA()">Create one</a></div>
+  </div>
+
+  <!-- Create Account -->
+  <div class="auth-card wide" id="caCard" style="display:none">
+    <div class="auth-logo">
+      <div class="auth-logo-icon">⚙</div>
+      <div><div class="auth-logo-text">IS Job Registry</div><div class="auth-logo-sub">Health Data Operations</div></div>
+    </div>
+    <div class="auth-title">Create account</div>
+    <div class="auth-sub">Set up your account to access the registry</div>
+    <div class="auth-err" id="ca-err"></div>
+    <div class="auth-2col">
+      <div class="auth-field"><label>First name</label><input type="text" id="ca-first" placeholder="Cliff"></div>
+      <div class="auth-field"><label>Last name</label><input type="text" id="ca-last" placeholder="Johnson"></div>
+    </div>
+    <div class="auth-field"><label>Email address</label><input type="email" id="ca-email" placeholder="you@company.com"></div>
+    <div class="auth-2col">
+      <div class="auth-field"><label>Job title</label><input type="text" id="ca-title" placeholder="Data Operations Analyst"></div>
+      <div class="auth-field"><label>Department</label><input type="text" id="ca-dept" placeholder="Health Data Operations"></div>
+    </div>
+    <div class="auth-field">
+      <label>Password</label>
+      <input type="password" id="ca-pass" placeholder="Min. 8 characters" oninput="pwStrength(this.value)">
+      <div class="auth-strength"><div class="auth-strength-bar" id="strBar"></div></div>
+      <div class="auth-strength-lbl" id="strLbl"></div>
+    </div>
+    <div class="auth-field"><label>Confirm password</label><input type="password" id="ca-confirm" placeholder="••••••••" onkeydown="if(event.key==='Enter')createAcct()"></div>
+    <button class="auth-btn" onclick="createAcct()">Create account</button>
+    <div class="auth-switch">Already have an account? <a onclick="showSI()">Sign in</a></div>
+  </div>
+
+</div><!-- /authScreen -->
+
+<!-- MAIN APP -->
+<div id="appShell" style="display:none">
+
+<!-- Admin Panel Modal -->
+<div class="modal-overlay" id="adminOverlay" style="display:none;align-items:center;justify-content:center">
+  <div class="admin-modal">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div><div style="font-size:16px;font-weight:600">Admin Panel</div><div style="font-size:12px;color:var(--text3);margin-top:2px">Manage users · reset passwords</div></div>
+      <button class="detail-close" onclick="closeAdmin()">✕</button>
+    </div>
+    <div id="adminList"></div>
+    <div class="tmpbox" id="tmpBox">
+      <div style="color:var(--amber);font-weight:500;margin-bottom:4px">Temporary password set</div>
+      <div style="color:var(--text2);font-size:12px">Share with <span id="tmpUser"></span> via Teams or email. Ask them to change it after signing in.</div>
+      <div class="tmpcode" id="tmpCode"></div>
+      <button class="btn" style="font-size:12px;padding:4px 10px" onclick="copyTmp()">⎘ Copy</button>
+    </div>
+  </div>
+</div>
+
+<!-- Manage Types Modal -->
+<div class="modal-overlay" id="typesMgrOverlay" style="display:none;align-items:center;justify-content:center">
+  <div class="modal" style="width:580px;max-height:85vh">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <h2 style="margin:0">Manage Types</h2>
+      <button class="detail-close" onclick="closeTypesMgr()">✕</button>
+    </div>
+    <div style="display:flex;border-bottom:1px solid var(--border);margin-bottom:16px">
+      <div class="detail-tab active" id="tmTab-code" onclick="switchTMTab('code',this)" style="padding:8px 16px">Code Types</div>
+      <div class="detail-tab" id="tmTab-job" onclick="switchTMTab('job',this)" style="padding:8px 16px">Job Types</div>
+    </div>
+    <div id="tmList" style="margin-bottom:16px;max-height:220px;overflow-y:auto"></div>
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px">
+      <div style="font-size:12px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px" id="tmFormTitle">Add new type</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div class="form-field" style="margin:0">
+          <label class="form-label">Label (display name)</label>
+          <input class="form-input" id="tm-label" placeholder="e.g. Stored Procedure">
+        </div>
+        <div class="form-field" style="margin:0">
+          <label class="form-label">Key (unique, no spaces)</label>
+          <input class="form-input" id="tm-key" placeholder="e.g. SPROC" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div class="form-field" style="margin:0">
+          <label class="form-label">Has source code?</label>
+          <select class="form-input form-select" id="tm-nocode">
+            <option value="false">Yes — show code editor</option>
+            <option value="true">No — inventory only</option>
+          </select>
+        </div>
+        <div class="form-field" style="margin:0">
+          <label class="form-label">Section</label>
+          <select class="form-input form-select" id="tm-section">
+            <option value="code">Code</option>
+            <option value="job">Job Type</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-field" style="margin-bottom:10px">
+        <label class="form-label">Color</label>
+        <div class="color-grid" id="tmColorGrid"></div>
+        <input type="hidden" id="tm-color" value="#8b949e">
+      </div>
+      <div id="tm-err" style="font-size:12px;color:var(--red);margin-bottom:8px;display:none"></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" onclick="saveType()">Save type</button>
+        <button class="btn" onclick="resetTMForm()">Clear</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="shell">
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="logo">
+      <div class="logo-icon">⚙</div>
+      IS Job Registry
+    </div>
+    <div class="topbar-search">
+      <span class="si">⌕</span>
+      <input type="text" id="globalSearch" placeholder="Search jobs, scripts, procedures…" oninput="renderJobs()">
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-primary" onclick="openModal()">+ New Job</button>
+      <div class="user-menu">
+        <div class="user-avatar" id="userAvatar" onclick="toggleUD()">?</div>
+        <div class="user-dropdown" id="userDD">
+          <div class="udh">
+            <div class="udh-name" id="udName">—</div>
+            <div class="udh-email" id="udEmail">—</div>
+            <div class="udh-role" id="udRole">—</div>
+          </div>
+          <div class="ud-item" id="adminLink" style="display:none" onclick="openAdmin()">⚙ &nbsp;Admin Panel</div>
+          <div class="ud-item danger" onclick="signOut()">⎋ &nbsp;Sign out</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Views</div>
+      <div class="nav-item active" onclick="setView('all',this)">
+        <span>≡</span> All Jobs <span class="count" id="cnt-all">0</span>
+      </div>
+      <div class="nav-item" onclick="setView('active',this)">
+        <span>▶</span> Active <span class="count" id="cnt-active">0</span>
+      </div>
+      <div class="nav-item" onclick="setView('disabled',this)">
+        <span>⏸</span> Disabled <span class="count" id="cnt-disabled">0</span>
+      </div>
+    </div>
+    <div class="sidebar-divider"></div>
+    <div id="sidebarTypes"></div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Environments</div>
+      <div class="nav-item" onclick="setEnvFilter('PROD',this)">
+        <span style="color:var(--red)">●</span> Production <span class="count" id="cnt-PROD">0</span>
+      </div>
+      <div class="nav-item" onclick="setEnvFilter('UAT',this)">
+        <span style="color:var(--amber)">●</span> UAT <span class="count" id="cnt-UAT">0</span>
+      </div>
+      <div class="nav-item" onclick="setEnvFilter('DEV',this)">
+        <span style="color:var(--green)">●</span> Dev <span class="count" id="cnt-DEV">0</span>
+      </div>
+    </div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section">
+      <div class="nav-item" onclick="openTypesMgr()" style="color:var(--text2)">
+        <span style="font-size:13px">⊞</span> Manage Types
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="content">
+      <div class="page-header">
+        <div>
+          <div class="page-title" id="pageTitle">All Jobs</div>
+          <div class="page-sub" id="pageSub">Health Data Operations — IS Production Registry</div>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-row">
+        <div class="stat-card"><div class="stat-val" id="s-total">0</div><div class="stat-label">Total Jobs</div></div>
+        <div class="stat-card"><div class="stat-val" style="color:var(--green)" id="s-active">0</div><div class="stat-label">Active</div></div>
+        <div class="stat-card"><div class="stat-val" style="color:var(--blue)" id="s-sql">0</div><div class="stat-label">SQL Scripts</div></div>
+        <div class="stat-card"><div class="stat-val" style="color:var(--purple)" id="s-ps">0</div><div class="stat-label">PowerShell</div></div>
+        <div class="stat-card"><div class="stat-val" style="color:var(--amber)" id="s-prod">0</div><div class="stat-label">Production</div></div>
+      </div>
+
+      <!-- Filter chips -->
+      <div class="filter-bar" id="filterBar">
+        <span class="filter-chip active" onclick="setChipFilter('all',this)">All</span>
+      </div>
+
+      <!-- Table -->
+      <table class="job-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Environment</th>
+            <th>Schedule</th>
+            <th>Owner</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="jobTableBody"></tbody>
+      </table>
+      <div id="emptyState" class="empty-state" style="display:none">
+        <div class="big">📋</div>
+        <div style="font-weight:500;margin-bottom:4px">No jobs found</div>
+        <div style="font-size:12px">Try a different filter or add a new job</div>
+      </div>
+    </div>
+  </main>
+</div><!-- /.shell -->
+
+<!-- Overlay for detail panel -->
+<div class="overlay-bg" id="overlayBg" onclick="closeDetail()"></div>
+
+<!-- Detail Panel -->
+<div class="detail-panel" id="detailPanel">
+  <div class="detail-header">
+    <div style="flex:1">
+      <div class="detail-title" id="dpTitle"></div>
+      <div class="detail-meta" id="dpMeta"></div>
+    </div>
+    <button class="detail-close" onclick="closeDetail()">✕</button>
+  </div>
+  <div class="detail-tabs">
+    <div class="detail-tab active" onclick="switchTab('code',this)">Code</div>
+    <div class="detail-tab" onclick="switchTab('docs',this)">Documentation</div>
+    <div class="detail-tab" onclick="switchTab('deps',this)">Dependencies</div>
+    <div class="detail-tab" onclick="switchTab('info',this)">Info</div>
+  </div>
+  <div class="detail-body" id="detailBody"></div>
+
+  <!-- AI Assistant -->
+  <div class="ai-panel">
+    <button class="ai-toggle" onclick="toggleAI()">
+      <div class="ai-icon">✦</div>
+      <span>Ask AI about this job</span>
+      <span style="margin-left:auto;font-size:11px" id="aiChevron">▲</span>
+    </button>
+    <div class="ai-body" id="aiBody">
+      <div class="ai-quick" id="aiQuick">
+        <button onclick="askQuick('What does this job do?')">What does this do?</button>
+        <button onclick="askQuick('Are there any potential issues or risks with this code?')">Check for issues</button>
+        <button onclick="askQuick('How can I optimize or improve this code?')">Optimize</button>
+        <button onclick="askQuick('Write documentation for this job.')">Generate docs</button>
+      </div>
+      <div class="ai-messages" id="aiMessages"></div>
+      <div class="ai-input-row">
+        <input class="ai-input" id="aiInput" placeholder="Ask about this job or code…" onkeydown="if(event.key==='Enter')sendAI()">
+        <button class="ai-send" onclick="sendAI()">Ask ✦</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- New Job Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h2>Add New Job</h2>
+    <div class="form-field">
+      <label class="form-label">Job Name *</label>
+      <input class="form-input" id="f-name" placeholder="e.g. CareSource_Member_Load_Daily">
+    </div>
+    <div class="form-field">
+      <label class="form-label">Description</label>
+      <input class="form-input" id="f-desc" placeholder="One-line summary of what this job does">
+    </div>
+    <div class="form-field">
+      <label class="form-label">Purpose / Business Use</label>
+      <textarea class="form-input" id="f-purpose" style="font-family:'DM Sans',sans-serif;min-height:70px" placeholder="Why does this job exist? What business process does it support? Who uses the output?"></textarea>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-field">
+        <label class="form-label">Job Type *</label>
+        <select class="form-input form-select" id="f-type" onchange="toggleModalFields()">
+          <option value="SQL">SQL Script</option>
+          <option value="BAT">.bat Script</option>
+          <option value="PS">PowerShell</option>
+          <option value="SSIS">SSIS Package</option>
+          <option value="PY">Python Script</option>
+          <option value="ALTERYX">Alteryx Workflow</option>
+          <option value="ALTXSCHED">Alteryx Schedule</option>
+          <option value="QLIK">Qlik App</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Environment *</label>
+        <select class="form-input form-select" id="f-env">
+          <option value="PROD">Production</option>
+          <option value="UAT">UAT</option>
+          <option value="DEV">Dev</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-field" style="grid-column:1/-1">
+        <label class="form-label">Schedule</label>
+        <div class="sched-row" id="modal-sched-row">
+          <div class="sched-group">
+            <label>Frequency</label>
+            <select id="f-freq" onchange="onModalFreqChange()">
+              <option value="">— Select —</option>
+              <option value="On Demand">On Demand</option>
+              <option value="Daily">Daily</option>
+              <option value="Weekly">Weekly</option>
+              <option value="Biweekly">Biweekly</option>
+              <option value="Monthly">Monthly</option>
+              <option value="Quarterly">Quarterly</option>
+            </select>
+          </div>
+          <div class="sched-group" id="modal-day-group" style="display:none">
+            <label id="modal-day-label">Day</label>
+            <select id="f-day" onchange="updateModalSummary()">
+              <option value="Monday">Monday</option>
+              <option value="Tuesday">Tuesday</option>
+              <option value="Wednesday">Wednesday</option>
+              <option value="Thursday">Thursday</option>
+              <option value="Friday">Friday</option>
+              <option value="Saturday">Saturday</option>
+              <option value="Sunday">Sunday</option>
+            </select>
+          </div>
+          <div class="sched-group" id="modal-dom-group" style="display:none">
+            <label>Day of Month</label>
+            <select id="f-dom" onchange="updateModalSummary()">
+              ${Array.from({length:28},(_,i)=>`<option value="${i+1}">${i+1}${['st','nd','rd'][i]||'th'}</option>`).join('')}
+              <option value="Last">Last day</option>
+            </select>
+          </div>
+          <div class="sched-group" id="modal-time-group" style="display:none">
+            <label>Time</label>
+            <input type="time" id="f-time" value="02:00" onchange="updateModalSummary()">
+          </div>
+        </div>
+        <div id="modal-sched-summary" class="sched-summary" style="display:none"></div>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Owner</label>
+        <input class="form-input" id="f-owner" placeholder="Team member name">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-field">
+        <label class="form-label">Customer / Requestor</label>
+        <input class="form-input" id="f-customer" placeholder="e.g. CareSource, Analytics Team, Finance">
+      </div>
+      <div class="form-field">
+        <label class="form-label">Customer Contact</label>
+        <input class="form-input" id="f-customerContact" placeholder="Name or email of business contact">
+      </div>
+    </div>
+    <div class="form-field">
+      <label class="form-label">Server / Path</label>
+      <input class="form-input" id="f-server" placeholder="e.g. SQLS01 / \\server\scripts\job.ps1">
+    </div>
+
+    <!-- Inventory fields: Alteryx & Qlik only -->
+    <div id="inventoryFields" style="display:none">
+      <div class="form-field">
+        <label class="form-label" id="f-workflowpath-label">Workflow / App Path</label>
+        <input class="form-input" id="f-workflowPath" placeholder="e.g. \\server\workflows\MyFlow.yxmd  or  Qlik Hub > Stream > App Name">
+      </div>
+      <div class="form-field">
+        <label class="form-label">Input Sources</label>
+        <textarea class="form-input" id="f-inputSources" style="font-family:'DM Sans',sans-serif;min-height:60px" placeholder="List data sources: databases, files, APIs, ODBC connections…"></textarea>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Output Targets</label>
+        <textarea class="form-input" id="f-outputTargets" style="font-family:'DM Sans',sans-serif;min-height:60px" placeholder="Where does output go? Tables, files, dashboards, downstream jobs…"></textarea>
+      </div>
+      <div class="form-field">
+        <label class="form-label" id="f-version-label">Version / Platform</label>
+        <input class="form-input" id="f-alteryxVersion" placeholder="e.g. Alteryx Designer 2023.2  or  Qlik Sense Enterprise Nov 2023">
+      </div>
+    </div>
+
+    <!-- Code field: hidden for Alteryx/Qlik -->
+    <div id="codeField" class="form-field">
+      <label class="form-label">Code / Script</label>
+      <textarea class="form-input" id="f-code" placeholder="Paste your SQL, PowerShell, Python, BAT code here…"></textarea>
+    </div>
+
+    <div class="form-field">
+      <label class="form-label">Documentation / Notes</label>
+      <textarea class="form-input" id="f-notes" style="font-family:'DM Sans',sans-serif" placeholder="Dependencies, run instructions, change history, known issues…"></textarea>
+    </div>
+    <div class="form-field">
+      <label class="form-label">Tags (comma separated)</label>
+      <input class="form-input" id="f-tags" placeholder="e.g. medicare, supplemental, caresource">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveJob()">Save Job</button>
+    </div>
+  </div>
+</div><!-- /modal -->
+
+</div><!-- /appShell -->
+
+<script>
+// ─── DATA ────────────────────────────────────────────────────────────────────
+const BUILTIN_TYPES = {
+  SQL:      {label:'SQL Script',       color:'#58a6ff', bg:'rgba(88,166,255,.15)',  lang:'sql',        noCode:false, section:'code',  builtin:true},
+  BAT:      {label:'.bat',             color:'#ffa657', bg:'rgba(255,166,87,.15)',  lang:'bat',        noCode:false, section:'job',   builtin:true},
+  PS:       {label:'PowerShell',       color:'#bc8cff', bg:'rgba(188,140,255,.15)', lang:'powershell', noCode:false, section:'job',   builtin:true},
+  SSIS:     {label:'SSIS',             color:'#3fb950', bg:'rgba(63,185,80,.15)',   lang:'xml',        noCode:false, section:'job',   builtin:true},
+  PY:       {label:'Python',           color:'#f0883e', bg:'rgba(240,136,62,.15)',  lang:'python',     noCode:false, section:'code',  builtin:true},
+  ALTERYX:  {label:'Alteryx Workflow', color:'#00a6e0', bg:'rgba(0,166,224,.15)',   lang:'alteryx',    noCode:true,  section:'code',  builtin:true},
+  ALTXSCHED:{label:'Alteryx Schedule', color:'#0082b3', bg:'rgba(0,130,179,.15)',   lang:'alteryx',    noCode:true,  section:'job',   builtin:true},
+  QLIK:     {label:'Qlik',             color:'#52cc74', bg:'rgba(82,204,116,.15)',  lang:'qlik',       noCode:true,  section:'code',  builtin:true},
+};
+
+function getCustomTypes(){ return JSON.parse(localStorage.getItem('isJobCustomTypes')||'{}'); }
+function saveCustomTypes(ct){ localStorage.setItem('isJobCustomTypes',JSON.stringify(ct)); }
+
+function buildTypeMeta(){
+  const custom = getCustomTypes();
+  const merged = {};
+  // Start with builtins, apply any overrides
+  Object.entries(BUILTIN_TYPES).forEach(([k,v])=>{
+    const override = custom[k];
+    if(override && override._builtinOverride){
+      const hex=override.color||v.color;
+      const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+      merged[k]={...v, label:override.label||v.label, color:hex, bg:`rgba(${r},${g},${b},.15)`};
+    } else {
+      merged[k]={...v};
+    }
+  });
+  // Add pure custom types (no _builtinOverride)
+  Object.entries(custom).forEach(([k,v])=>{
+    if(v._builtinOverride) return; // already handled above
+    const hex=v.color||'#8b949e';
+    const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+    merged[k]={
+      label:v.label, color:hex,
+      bg:`rgba(${r},${g},${b},.15)`,
+      lang:'text', noCode:!!v.noCode, section:v.section||'job', builtin:false
+    };
+  });
+  return merged;
+}
+
+let TYPE_META = buildTypeMeta();
+const ENV_META = {
+  PROD:{label:'PROD',color:'#f85149',bg:'rgba(248,81,73,.12)'},
+  UAT: {label:'UAT', color:'#d29922',bg:'rgba(210,153,34,.12)'},
+  DEV: {label:'DEV', color:'#3fb950',bg:'rgba(63,185,80,.12)'},
+};
+
+let jobs = JSON.parse(localStorage.getItem('isJobs') || 'null') || [
+  {id:1,name:'CareSource_Member_Load_Daily',desc:'Loads daily member eligibility data from CareSource flat file into staging tables',type:'SQL',env:'PROD',schedule:'Daily 2:00 AM',owner:'D. Thompson',server:'SQLPROD01',status:'active',tags:['caresource','eligibility','medicare'],
+   purpose:'Ensures the production member database is updated daily with the latest CareSource eligibility feed. Downstream jobs (claims matching, quality checks, monthly reporting) depend on this running successfully before 4 AM.',
+   code:`-- CareSource Member Load - Daily ETL
+-- Loads member eligibility from flat file staging
+
+USE HealthOpsDB
+GO
+
+SET NOCOUNT ON;
+
+DECLARE @RunDate DATE = GETDATE()
+DECLARE @RecordCount INT = 0
+
+-- Truncate staging
+TRUNCATE TABLE stg.CareSource_Members
+
+-- Load from flat file (pre-loaded via SSIS)
+INSERT INTO stg.CareSource_Members
+  (MemberID, LastName, FirstName, DOB, EffDate, TermDate, PlanCode)
+SELECT 
+  MemberID, LastName, FirstName, DOB, 
+  EffectiveDate, TerminationDate, PlanCode
+FROM import.CS_Daily_File
+WHERE LoadDate = @RunDate
+
+SET @RecordCount = @@ROWCOUNT
+
+-- Upsert to production
+MERGE dbo.Members AS tgt
+USING stg.CareSource_Members AS src
+  ON tgt.MemberID = src.MemberID
+WHEN MATCHED THEN UPDATE SET
+  tgt.TermDate   = src.TermDate,
+  tgt.PlanCode   = src.PlanCode,
+  tgt.ModifiedDT = GETDATE()
+WHEN NOT MATCHED THEN INSERT
+  (MemberID,LastName,FirstName,DOB,EffDate,TermDate,PlanCode,CreatedDT)
+VALUES
+  (src.MemberID,src.LastName,src.FirstName,src.DOB,
+   src.EffDate,src.TermDate,src.PlanCode,GETDATE());
+
+-- Log run
+INSERT INTO audit.JobRunLog (JobName,RunDate,RecordCount,Status)
+VALUES ('CareSource_Member_Load',@RunDate,@RecordCount,'SUCCESS')
+
+SELECT @RecordCount AS RecordsLoaded`,
+   notes:'Depends on SSIS package CS_FlatFile_Import running first (scheduled 1:30 AM). Flat file arrives via SFTP at \\\\sftp01\\caresource\\daily\\. If file is late, job waits up to 30 min then fails gracefully.\n\nChange Log:\n- 2024-11-12: Added TermDate upsert logic (D. Thompson)\n- 2024-08-01: Initial deployment'},
+
+  {id:2,name:'MMO_Supplemental_Submission_Weekly',desc:'Generates and submits MMO Medicare supplemental data to CMS via batch',type:'PS',env:'PROD',schedule:'Monday 5:00 AM',owner:'C. Johnson',server:'APPSRV02',status:'active',tags:['medicare','mmo','supplemental','cms'],
+   purpose:'Fulfills CMS Medicare supplemental data submission requirements for the MMO plan. Failure to submit by Monday 8 AM triggers a compliance escalation. Output file must conform to the 837 format spec.',
+   code:`# MMO Supplemental Data Submission
+# Generates weekly Medicare supplemental batch for CMS
+
+param(
+  [string]$RunDate = (Get-Date -Format 'yyyy-MM-dd'),
+  [string]$OutputPath = '\\\\appsrv02\\submissions\\mmo',
+  [switch]$DryRun
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+
+Write-Host "[$RunDate] Starting MMO Supplemental Submission" -ForegroundColor Cyan
+
+# ── Pull data from SQL ──────────────────────────────────────────
+$connStr = "Server=SQLPROD01;Database=HealthOpsDB;Integrated Security=True"
+$query = @"
+  SELECT MemberID, ClaimID, ServiceDate, DiagCode,
+         ProcCode, AmountBilled, AmountPaid, ProviderNPI
+  FROM   dbo.SupplementalClaims
+  WHERE  SubmissionWeek = DATEPART(wk, '$RunDate')
+    AND  Submitted = 0
+    AND  PlanCode  LIKE 'MMO%'
+"@
+
+$data = Invoke-Sqlcmd -ConnectionString $connStr -Query $query
+Write-Host "  Records to submit: $($data.Count)"
+
+# ── Generate 837 flat file ──────────────────────────────────────
+$outFile = Join-Path $OutputPath "MMO_Supp_$(Get-Date -Format 'yyyyMMdd').txt"
+$lines   = @()
+foreach ($row in $data) {
+  $lines += "$($row.MemberID)|$($row.ClaimID)|$($row.ServiceDate.ToString('yyyyMMdd'))|" +
+            "$($row.DiagCode)|$($row.ProcCode)|$($row.AmountBilled)|$($row.AmountPaid)|$($row.ProviderNPI)"
+}
+
+if (-not $DryRun) {
+  $lines | Out-File $outFile -Encoding ASCII
+  Write-Host "  File written: $outFile" -ForegroundColor Green
+
+  # Mark as submitted
+  Invoke-Sqlcmd -ConnectionString $connStr -Query @"
+    UPDATE dbo.SupplementalClaims
+    SET Submitted = 1, SubmittedDT = GETDATE(), SubmissionFile = '$outFile'
+    WHERE SubmissionWeek = DATEPART(wk,'$RunDate') AND PlanCode LIKE 'MMO%'
+"@
+} else {
+  Write-Host "  DRY RUN — file not written" -ForegroundColor Yellow
+}
+
+Write-Host "[$RunDate] Done. $($data.Count) records processed." -ForegroundColor Green`,
+   notes:'This script requires SqlServer PS module (v21+). Run as svc_healthops service account which has read access to HealthOpsDB and write to \\\\appsrv02\\submissions.\n\nTo test: run with -DryRun flag — will pull data and count records but not write file or mark submitted.\n\nChange Log:\n- 2025-01-08: Parameterized RunDate (C. Johnson)\n- 2024-09-15: Added DryRun switch for testing'},
+
+  {id:3,name:'Archive_ClaimsHistory_Monthly',desc:'Archives claims older than 7 years to cold storage and removes from active DB',type:'SQL',env:'PROD',schedule:'1st of month 11:00 PM',owner:'D. Thompson',server:'SQLPROD01',status:'active',tags:['archive','claims','maintenance'],
+   code:`-- Monthly Claims Archive Job
+-- Archives claims > 7 years to HealthOpsArchive DB
+
+USE HealthOpsDB
+GO
+
+DECLARE @CutoffDate DATE = DATEADD(YEAR,-7,GETDATE())
+DECLARE @BatchSize  INT  = 5000
+DECLARE @Archived   INT  = 0
+DECLARE @Total      INT
+
+SELECT @Total = COUNT(*)
+FROM   dbo.Claims
+WHERE  ServiceDate < @CutoffDate
+
+PRINT 'Records to archive: ' + CAST(@Total AS VARCHAR)
+
+WHILE @Archived < @Total
+BEGIN
+  -- Archive batch
+  INSERT INTO HealthOpsArchive.dbo.Claims
+  SELECT TOP (@BatchSize) *
+  FROM   HealthOpsDB.dbo.Claims
+  WHERE  ServiceDate < @CutoffDate
+    AND  ClaimID NOT IN (SELECT ClaimID FROM HealthOpsArchive.dbo.Claims)
+
+  -- Delete archived batch
+  DELETE TOP (@BatchSize)
+  FROM   HealthOpsDB.dbo.Claims
+  WHERE  ServiceDate < @CutoffDate
+
+  SET @Archived = @Archived + @@ROWCOUNT
+  PRINT 'Archived: ' + CAST(@Archived AS VARCHAR) + ' / ' + CAST(@Total AS VARCHAR)
+  
+  WAITFOR DELAY '00:00:02'  -- Throttle I/O
+END
+
+INSERT INTO audit.JobRunLog(JobName,RunDate,RecordCount,Status)
+VALUES('Archive_ClaimsHistory',GETDATE(),@Archived,'SUCCESS')`,
+   notes:'Runs in batches of 5000 with 2s delay to limit I/O impact. Requires linked server to HealthOpsArchive. Estimated runtime: 45-90 min depending on volume. Alert DBA if > 2 hours.'},
+
+  {id:4,name:'Deploy_ETL_Packages',desc:'Deploys SSIS packages from build server to SSISDB on SQLPROD01',type:'BAT',env:'PROD',schedule:'On demand',owner:'IT Deploy',server:'BUILDSRV01',status:'active',tags:['deploy','ssis','devops'],
+   code:`@echo off
+REM SSIS Package Deployment Script
+REM Usage: deploy_etl.bat [PackageName] [Environment]
+
+setlocal enabledelayedexpansion
+
+set PACKAGE=%1
+set ENV=%2
+set SSISDB=SQLPROD01
+set CATALOG=SSISDB
+set FOLDER=HealthOps
+
+if "%PACKAGE%"=="" (
+  echo ERROR: Package name required
+  echo Usage: deploy_etl.bat PackageName [PROD^|UAT^|DEV]
+  exit /b 1
+)
+
+if "%ENV%"=="" set ENV=UAT
+
+echo ============================================
+echo  SSIS Deployment: %PACKAGE%
+echo  Target:  %SSISDB% / %FOLDER%
+echo  Env:     %ENV%
+echo ============================================
+
+REM Find .ispac file
+set ISPAC=\\buildsrv01\\drops\\latest\\%PACKAGE%.ispac
+if not exist "%ISPAC%" (
+  echo ERROR: Package not found: %ISPAC%
+  exit /b 2
+)
+
+REM Deploy via isdeploymentwizard
+"C:\\Program Files\\Microsoft SQL Server\\150\\DTS\\Binn\\isdeploymentwizard.exe" ^
+  /Silent ^
+  /SourceType:File ^
+  /SourcePath:"%ISPAC%" ^
+  /DestinationServer:"%SSISDB%" ^
+  /DestinationPath:"/%CATALOG%/%FOLDER%/%PACKAGE%"
+
+if %ERRORLEVEL%==0 (
+  echo SUCCESS: %PACKAGE% deployed to %ENV%
+) else (
+  echo FAILED: Deployment error %ERRORLEVEL%
+  exit /b %ERRORLEVEL%
+)`,
+   notes:'Run from BUILDSRV01 as domain admin. Package must be built first via Visual Studio / Azure DevOps pipeline.\n\nExample:\n  deploy_etl.bat CS_FlatFile_Import PROD\n  deploy_etl.bat MMO_Claims_Extract UAT'},
+
+  {id:5,name:'Member_Data_Quality_Check',desc:'Validates member data completeness and flags anomalies before monthly CMS submission',type:'PY',env:'UAT',schedule:'Monthly, day before submission',owner:'C. Johnson',server:'APPSRV02',status:'active',tags:['data-quality','validation','cms','medicare'],
+   code:`#!/usr/bin/env python3
+"""
+Member Data Quality Check
+Validates member records before CMS submission.
+Outputs QC report to \\\\reports\\dq\\
+"""
+
+import pyodbc
+import pandas as pd
+from datetime import date, datetime
+import smtplib
+from email.mime.text import MIMEText
+
+CONN_STR = (
+    "DRIVER={SQL Server};"
+    "SERVER=SQLPROD01;"
+    "DATABASE=HealthOpsDB;"
+    "Trusted_Connection=yes;"
+)
+
+THRESHOLDS = {
+    "missing_dob_pct":    0.01,   # < 1% missing DOB
+    "missing_npi_pct":    0.02,   # < 2% missing provider NPI
+    "future_term_pct":    0.05,   # < 5% term date in future
+    "dup_member_count":   0,      # Zero duplicates allowed
+}
+
+def run_checks(conn):
+    checks = {}
+    df = pd.read_sql("SELECT * FROM dbo.Members WHERE Active = 1", conn)
+    total = len(df)
+    
+    # Missing DOB
+    missing_dob = df["DOB"].isna().sum()
+    checks["missing_dob_pct"] = missing_dob / total
+    
+    # Missing NPI
+    missing_npi = df["ProviderNPI"].isna().sum()
+    checks["missing_npi_pct"] = missing_npi / total
+    
+    # Future term dates
+    future_term = (pd.to_datetime(df["TermDate"]) > pd.Timestamp.now()).sum()
+    checks["future_term_pct"] = future_term / total
+    
+    # Duplicate MemberIDs
+    checks["dup_member_count"] = df["MemberID"].duplicated().sum()
+    
+    return checks, total
+
+def evaluate(checks):
+    failures = []
+    warnings = []
+    for metric, value in checks.items():
+        threshold = THRESHOLDS.get(metric)
+        if threshold is None:
+            continue
+        if value > threshold:
+            failures.append(f"FAIL  {metric}: {value:.4f} > threshold {threshold}")
+        elif value > threshold * 0.8:
+            warnings.append(f"WARN  {metric}: {value:.4f} approaching threshold {threshold}")
+    return failures, warnings
+
+if __name__ == "__main__":
+    conn = pyodbc.connect(CONN_STR)
+    checks, total = run_checks(conn)
+    failures, warnings = evaluate(checks)
+    
+    print(f"\\n=== Data Quality Report — {date.today()} ===")
+    print(f"Total active members: {total:,}")
+    for f in failures:  print(f"  {f}")
+    for w in warnings:  print(f"  {w}")
+    if not failures and not warnings:
+        print("  All checks PASSED")
+    
+    conn.close()
+    exit(1 if failures else 0)`,
+   notes:'Requires pyodbc and pandas. Run as svc_healthops.\n\nExit codes: 0 = all pass, 1 = one or more checks failed.\n\nIntegrate with Azure DevOps pipeline to block submission if exit code = 1.'},
+
+  {id:6,name:'CS_FlatFile_Import',desc:'SSIS package: imports CareSource flat files from SFTP into staging tables',type:'SSIS',env:'PROD',schedule:'Daily 1:30 AM',owner:'D. Thompson',server:'SQLPROD01 / SSISDB',status:'active',tags:['caresource','ssis','sftp','staging'],
+   code:`<!-- SSIS Package: CS_FlatFile_Import -->
+<!-- Source: SFTP \\sftp01\\caresource\\daily\ -->
+<!-- Destination: HealthOpsDB.import.CS_Daily_File -->
+
+<Executable DTS:ExecutableType="SSIS.Package">
+  <Property DTS:Name="PackageName">CS_FlatFile_Import</Property>
+  <Property DTS:Name="PackageFormatVersion">8</Property>
+
+  <Connections>
+    <!-- SFTP Connection -->
+    <Connection DTS:ConnectionType="FTPCONN"
+                DTS:Name="SFTP_CareSource"
+                DTS:ServerName="sftp.caresource.com"
+                DTS:UserName="hs_etl_svc" />
+
+    <!-- SQL Destination -->
+    <Connection DTS:ConnectionType="OLEDB"
+                DTS:Name="SQLPROD01_HealthOps"
+                DTS:ServerName="SQLPROD01"
+                DTS:InitialCatalog="HealthOpsDB" />
+  </Connections>
+
+  <Executables>
+    <!-- Task 1: Download file -->
+    <Executable DTS:ExecutableType="Microsoft.SqlServer.Dts.Tasks.FtpTask.FtpTask">
+      <Property DTS:Name="TaskName">Download_CS_File</Property>
+      <Property DTS:Name="IsDownloadOperation">True</Property>
+      <Property DTS:Name="RemotePath">/outbound/daily/</Property>
+      <Property DTS:Name="LocalPath">\\\\etlsrv01\\landing\\caresource\\</Property>
+    </Executable>
+
+    <!-- Task 2: Truncate staging -->
+    <Executable DTS:ExecutableType="Microsoft.SqlServer.Dts.Tasks.ExecuteSQLTask.ExecuteSQLTask">
+      <Property DTS:Name="TaskName">Truncate_Staging</Property>
+      <Property DTS:Name="SqlStatementSource">
+        TRUNCATE TABLE import.CS_Daily_File
+      </Property>
+    </Executable>
+
+    <!-- Task 3: Data Flow - Flat file to SQL -->
+    <Executable DTS:ExecutableType="SSIS.Pipeline">
+      <Property DTS:Name="TaskName">Load_FlatFile_to_SQL</Property>
+      <!-- Flat File Source → Derived Column (trim/clean) → OLE DB Dest -->
+    </Executable>
+  </Executables>
+</Executable>`,
+   notes:'Package is deployed to SSISDB on SQLPROD01 via deploy_etl.bat. File format: pipe-delimited, UTF-8, no header row.\n\nField order: MemberID|LastName|FirstName|DOB|EffectiveDate|TerminationDate|PlanCode\n\nIf SFTP download fails, package sends alert to HealthOps-DL@company.com and exits with code 2.'},
+  {id:7,name:'CareSource_Member_Eligibility_Blend',desc:'Blends CareSource member eligibility with claims history for monthly analytics report',type:'ALTERYX',env:'PROD',schedule:'Monthly, 1st business day',owner:'C. Johnson',server:'ALTX-PROD01',status:'active',tags:['caresource','eligibility','analytics','blend'],
+   purpose:'Produces the monthly member eligibility summary used by the analytics team and reported to leadership. Combines raw eligibility feed with 12-month claims history to calculate utilization metrics per member.',
+   workflowPath:'\\\\altx-prod01\\workflows\\CareSource\\CS_Member_Elig_Blend_v3.yxmd',
+   inputSources:'HealthOpsDB.dbo.Members (ODBC), HealthOpsDB.dbo.Claims (ODBC), \\\\sftp01\\caresource\\monthly\\elig_full.csv',
+   outputTargets:'HealthOpsDB.rpt.CS_Member_Monthly (SQL), \\\\reports\\caresource\\monthly\\elig_summary.xlsx',
+   alteryxVersion:'Alteryx Designer 2023.2',
+   code:'',
+   notes:'Workflow uses an in-database tool for the claims join — do not run on a local machine, must run on server with ODBC connection to SQLPROD01.\n\nRun time ~18 minutes. If the source CSV is missing, workflow will error on the Input Data tool on canvas row 3.\n\nChange Log:\n- 2025-02-10: Updated blend logic to include TermDate filter (C. Johnson)\n- 2024-10-01: Migrated to Alteryx Server 2023.2'},
+
+  {id:8,name:'Health_Ops_Executive_Dashboard',desc:'Qlik Sense app showing KPI dashboard for Health Data Ops leadership — member counts, claim volumes, submission status',type:'QLIK',env:'PROD',schedule:'Auto-refresh every 4 hours',owner:'D. Thompson',server:'QLIK-PROD01 / QMC',status:'active',tags:['dashboard','kpi','executive','medicare','claims'],
+   purpose:'Primary executive-facing dashboard used in weekly leadership meetings. Shows live member counts by plan (CareSource, MMO), claim submission status, data quality scores, and trend lines vs prior month.',
+   workflowPath:'Qlik Sense Hub > Health Data Operations > Health Ops Executive Dashboard',
+   inputSources:'HealthOpsDB (Direct Query), audit.JobRunLog, rpt.CS_Member_Monthly, rpt.MMO_Supplemental_Status',
+   outputTargets:'Qlik Sense Hub (published), embedded in SharePoint via iframe',
+   alteryxVersion:'Qlik Sense Enterprise Nov 2023',
+   code:'',
+   notes:'App is published to the "Health Data Ops" stream. Only users in the HDO-Analytics AD group can access.\n\nData connection: "HealthOps_PROD_DirectQuery" — managed in QMC by IT. If data stops refreshing, check the task "HealthOps_Full_Reload" in QMC Scheduler.\n\nChange Log:\n- 2025-01-20: Added MMO Supplemental submission tracker sheet\n- 2024-11-05: Rebuilt claims volume chart with Set Analysis for YTD'},
+
+  {id:9,name:'MMO_Claims_Trend_Analysis',desc:'Qlik Sense app analyzing MMO Medicare claim trends, denial rates, and provider performance',type:'QLIK',env:'UAT',schedule:'On demand / ad hoc',owner:'C. Johnson',server:'QLIK-UAT01 / QMC',status:'active',tags:['mmo','claims','trending','denial','provider'],
+   purpose:'Used by the clinical analytics team to investigate MMO claim denial patterns and provider performance outliers. Feeds into quarterly CMS reporting prep and provider corrective action discussions.',
+   workflowPath:'Qlik Sense Hub > UAT > MMO Claims Trend Analysis v2',
+   inputSources:'HealthOpsDB.dbo.Claims, HealthOpsDB.dbo.Providers, HealthOpsDB.ref.DenialCodes',
+   outputTargets:'Qlik Sense Hub (UAT stream), exported to Excel on demand',
+   alteryxVersion:'Qlik Sense Enterprise Nov 2023',
+   code:'',
+   notes:'Currently in UAT — pending approval to promote to PROD stream. Requires sign-off from Analytics Manager before promotion.\n\nKnown issue: denial rate % calculation does not yet account for resubmissions — flagged for v3.'},
+];
+
+let currentFilter = {view:'all', type:null, env:null, chip:'all'};
+let activeJobId = null;
+let activeTab   = 'code';
+
+// ─── RENDER ──────────────────────────────────────────────────────────────────
+function save(){ localStorage.setItem('isJobs', JSON.stringify(jobs)); }
+
+function getFiltered(){
+  const q = document.getElementById('globalSearch').value.toLowerCase();
+  return jobs.filter(j => {
+    if(currentFilter.view==='active'   && j.status!=='active')   return false;
+    if(currentFilter.view==='disabled' && j.status!=='disabled') return false;
+    if(currentFilter.type && j.type!==currentFilter.type) return false;
+    if(currentFilter.env  && j.env !==currentFilter.env)  return false;
+    if(currentFilter.chip && currentFilter.chip!=='all'){
+      // support section-level filters
+      if(currentFilter.chip==='code') { if(TYPE_META[j.type]?.section!=='code') return false; }
+      else if(currentFilter.chip==='job') { if(TYPE_META[j.type]?.section!=='job') return false; }
+      else { if(j.type!==currentFilter.chip) return false; }
+    }
+    if(q && ![j.name,j.desc,j.owner,j.server,j.customer,...(j.tags||[])].join(' ').toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+function typeBadge(t){
+  const m=TYPE_META[t]||{label:t,color:'#8b949e',bg:'rgba(139,148,158,.15)'};
+  return `<span class="type-badge" style="color:${m.color};background:${m.bg}">${m.label}</span>`;
+}
+function envBadge(e){
+  const m=ENV_META[e]||{label:e,color:'#8b949e',bg:'rgba(139,148,158,.15)'};
+  return `<span class="status-badge" style="color:${m.color};background:${m.bg}">● ${m.label}</span>`;
+}
+function statusBadge(s){
+  return s==='active'
+    ? `<span class="status-badge" style="color:#3fb950;background:rgba(63,185,80,.12)">Active</span>`
+    : `<span class="status-badge" style="color:#8b949e;background:rgba(139,148,158,.1)">Disabled</span>`;
+}
+
+function renderJobs(){
+  const filtered = getFiltered();
+  const tbody = document.getElementById('jobTableBody');
+  if(!filtered.length){
+    tbody.innerHTML='';
+    document.getElementById('emptyState').style.display='block';
+  } else {
+    document.getElementById('emptyState').style.display='none';
+    tbody.innerHTML = filtered.map(j=>`
+      <tr onclick="openDetail(${j.id})">
+        <td><div class="job-name">${j.name}${j.deps&&j.deps.length?`<span style="margin-left:6px;font-size:10px;background:var(--bg4);border:1px solid var(--border2);border-radius:10px;padding:1px 6px;color:var(--text3);vertical-align:middle">${j.deps.length} linked</span>`:''}</div><div class="job-desc">${j.desc}${j.customer?`<span style="margin-left:6px;color:var(--text3)">· ${esc(j.customer)}</span>`:''}</div></td>
+        <td>${typeBadge(j.type)}</td>
+        <td>${envBadge(j.env)}</td>
+        <td style="font-size:12px;color:var(--text2)">${j.schedule||'—'}</td>
+        <td style="font-size:12px;color:var(--text2)">${j.owner||'—'}</td>
+        <td>${statusBadge(j.status)}</td>
+      </tr>`).join('');
+  }
+  updateCounts();
+}
+
+function renderTypesUI(){
+  TYPE_META = buildTypeMeta();
+  const codeTypes = Object.entries(TYPE_META).filter(([,v])=>v.section==='code');
+  const jobTypes  = Object.entries(TYPE_META).filter(([,v])=>v.section==='job');
+
+  // Sidebar
+  document.getElementById('sidebarTypes').innerHTML=`
+    <div class="sidebar-section">
+      <div class="sidebar-label">Code</div>
+      ${codeTypes.map(([k,v])=>`
+        <div class="nav-item" onclick="setTypeFilter('${k}',this)" id="nav-${k}">
+          <span class="type-dot" style="background:${v.color}"></span> ${v.label}
+          <span class="count" id="cnt-${k}">0</span>
+        </div>`).join('')}
+    </div>
+    <div class="sidebar-divider" style="margin:4px 0"></div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Job Types</div>
+      ${jobTypes.map(([k,v])=>`
+        <div class="nav-item" onclick="setTypeFilter('${k}',this)" id="nav-${k}">
+          <span class="type-dot" style="background:${v.color}"></span> ${v.label}
+          <span class="count" id="cnt-${k}">0</span>
+        </div>`).join('')}
+    </div>`;
+
+  // Filter chips
+  const bar = document.getElementById('filterBar');
+  const sep = `<span style="width:1px;background:var(--border);margin:0 4px;align-self:stretch"></span>`;
+  const grpLbl = (txt,val) => `<span style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;align-self:center;padding:0 2px;cursor:pointer" onclick="setChipFilter('${val}',this)">${txt}</span>`;
+  bar.innerHTML =
+    `<span class="filter-chip active" onclick="setChipFilter('all',this)">All</span>` +
+    sep + grpLbl('Code','code') +
+    codeTypes.map(([k,v])=>`<span class="filter-chip" onclick="setChipFilter('${k}',this)">${v.label}</span>`).join('') +
+    sep + grpLbl('Jobs','job') +
+    jobTypes.map(([k,v])=>`<span class="filter-chip" onclick="setChipFilter('${k}',this)">${v.label}</span>`).join('');
+
+  // Modal type dropdown
+  const sel = document.getElementById('f-type');
+  if(sel){
+    sel.innerHTML =
+      `<optgroup label="Code">` +
+      codeTypes.map(([k,v])=>`<option value="${k}">${v.label}</option>`).join('') +
+      `</optgroup><optgroup label="Job Types">` +
+      jobTypes.map(([k,v])=>`<option value="${k}">${v.label}</option>`).join('') +
+      `</optgroup>`;
+  }
+}
+
+function updateCounts(){
+  document.getElementById('cnt-all').textContent      = jobs.length;
+  document.getElementById('cnt-active').textContent   = jobs.filter(j=>j.status==='active').length;
+  document.getElementById('cnt-disabled').textContent = jobs.filter(j=>j.status==='disabled').length;
+  Object.keys(TYPE_META).forEach(t=>{
+    const el=document.getElementById('cnt-'+t);
+    if(el) el.textContent = jobs.filter(j=>j.type===t).length;
+  });
+  ['PROD','UAT','DEV'].forEach(e=>{
+    document.getElementById('cnt-'+e).textContent = jobs.filter(j=>j.env===e).length;
+  });
+  document.getElementById('s-total').textContent  = jobs.length;
+  document.getElementById('s-active').textContent = jobs.filter(j=>j.status==='active').length;
+  document.getElementById('s-sql').textContent    = jobs.filter(j=>j.type==='SQL').length;
+  document.getElementById('s-ps').textContent     = jobs.filter(j=>j.type==='PS').length;
+  document.getElementById('s-prod').textContent   = jobs.filter(j=>j.env==='PROD').length;
+}
+
+// ─── FILTERS ─────────────────────────────────────────────────────────────────
+function setView(v, el){
+  currentFilter.view=v; currentFilter.type=null; currentFilter.env=null;
+  document.querySelectorAll('.sidebar .nav-item').forEach(n=>n.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('pageTitle').textContent=
+    v==='all'?'All Jobs':v==='active'?'Active Jobs':'Disabled Jobs';
+  renderJobs();
+}
+function setTypeFilter(t, el){
+  currentFilter.view='all'; currentFilter.env=null;
+  currentFilter.type = currentFilter.type===t ? null : t;
+  document.querySelectorAll('.sidebar .nav-item').forEach(n=>n.classList.remove('active'));
+  if(currentFilter.type) el.classList.add('active');
+  document.getElementById('pageTitle').textContent=
+    currentFilter.type ? TYPE_META[t].label+' Jobs' : 'All Jobs';
+  renderJobs();
+}
+function setEnvFilter(e, el){
+  currentFilter.view='all'; currentFilter.type=null;
+  currentFilter.env = currentFilter.env===e ? null : e;
+  document.querySelectorAll('.sidebar .nav-item').forEach(n=>n.classList.remove('active'));
+  if(currentFilter.env) el.classList.add('active');
+  document.getElementById('pageTitle').textContent=
+    currentFilter.env ? ENV_META[e].label+' Jobs' : 'All Jobs';
+  renderJobs();
+}
+function setChipFilter(c, el){
+  currentFilter.chip=c;
+  document.querySelectorAll('.filter-chip').forEach(x=>x.classList.remove('active'));
+  el.classList.add('active');
+  renderJobs();
+}
+
+// ─── DETAIL PANEL ────────────────────────────────────────────────────────────
+function openDetail(id){
+  activeJobId=id;
+  const j=jobs.find(x=>x.id===id);
+  if(!j) return;
+  const isNoCode = TYPE_META[j.type]?.noCode;
+  activeTab = isNoCode ? 'docs' : 'code';
+  document.getElementById('dpTitle').textContent=j.name;
+  document.getElementById('dpMeta').innerHTML=
+    typeBadge(j.type)+' '+envBadge(j.env)+' '+statusBadge(j.status)+
+    `<span style="font-size:12px;color:var(--text3)">${j.server||''}</span>`;
+  // Update Code tab label
+  const codeTab = document.querySelector('.detail-tab');
+  codeTab.textContent = isNoCode ? 'Inventory' : 'Code';
+  // Set active tab highlight
+  document.querySelectorAll('.detail-tab').forEach((t,i)=>{
+    t.classList.toggle('active', (i===0 && activeTab==='code') || (i===1 && activeTab==='docs') || (i===2 && activeTab==='info'));
+  });
+  if(isNoCode){
+    document.querySelectorAll('.detail-tab')[0].classList.remove('active');
+    document.querySelectorAll('.detail-tab')[1].classList.add('active');
+  } else {
+    document.querySelectorAll('.detail-tab')[0].classList.add('active');
+    document.querySelectorAll('.detail-tab')[1].classList.remove('active');
+  }
+  renderDetailTab();
+  document.getElementById('detailPanel').classList.add('open');
+  document.getElementById('overlayBg').classList.add('open');
+  document.getElementById('aiMessages').innerHTML='';
+  document.getElementById('aiBody').classList.remove('open');
+  document.getElementById('aiChevron').textContent='▲';
+}
+function closeDetail(){
+  document.getElementById('detailPanel').classList.remove('open');
+  document.getElementById('overlayBg').classList.remove('open');
+  activeJobId=null;
+}
+
+function switchTab(tab, el){
+  activeTab=tab;
+  document.querySelectorAll('.detail-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  renderDetailTab();
+}
+
+function renderDetailTab(){
+  const j=jobs.find(x=>x.id===activeJobId);
+  if(!j) return;
+  const body=document.getElementById('detailBody');
+  const isNoCode = TYPE_META[j.type]?.noCode;
+
+  if(activeTab==='code'){
+    if(isNoCode){
+      const t = TYPE_META[j.type];
+      body.innerHTML=`
+        <div style="border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;background:var(--bg3);margin-bottom:16px">
+          <div style="font-size:13px;font-weight:500;margin-bottom:6px;color:${t.color}">${t.label} — No Source Code</div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.6">${t.label} workflows and apps are visual/canvas-based and cannot be stored as plain text. Use the <strong>Documentation</strong> tab to capture inventory details, input/output sources, and notes.</div>
+        </div>
+        ${j.workflowPath?`<div class="doc-field"><div class="doc-label">${j.type==='QLIK'?'App Location':j.type==='ALTXSCHED'?'Schedule Name / Path':'Workflow File Path'}</div><div class="doc-value" style="font-family:'IBM Plex Mono',monospace;font-size:12px">${esc(j.workflowPath)}</div></div>`:''}
+        ${j.inputSources?`<div class="doc-field"><div class="doc-label">Input Sources</div><div class="doc-value" style="font-size:12px;white-space:pre-wrap">${esc(j.inputSources)}</div></div>`:''}
+        ${j.outputTargets?`<div class="doc-field"><div class="doc-label">Output Targets</div><div class="doc-value" style="font-size:12px;white-space:pre-wrap">${esc(j.outputTargets)}</div></div>`:''}`;
+    } else {
+      const lang=(TYPE_META[j.type]||{}).lang||'text';
+      body.innerHTML=`
+        <div class="code-wrap">
+          <div class="code-header">
+            <span class="code-lang">${lang}</span>
+            <button class="code-copy" onclick="copyCode(${j.id})">⎘ Copy</button>
+          </div>
+          <div class="code-body">${highlight(j.code||'-- No code yet',lang)}</div>
+        </div>`;
+    }
+  } else if(activeTab==='deps'){
+    const deps = j.deps || [];
+    const linkedIds = deps.map(d=>d.jobId);
+    const available = jobs.filter(x=>x.id!==j.id && !linkedIds.includes(x.id));
+
+    // Numbered step rows
+    const stepsHTML = deps.length
+      ? deps.map((d,i)=>{
+          const lj=jobs.find(x=>x.id===d.jobId);
+          if(!lj) return '';
+          const tm=TYPE_META[lj.type]||{label:lj.type,color:'#8b949e'};
+          return `<div class="dep-item">
+            <div class="dep-step">${i+1}</div>
+            <div class="dep-info">
+              <div class="dep-name">${esc(lj.name)}</div>
+              <div class="dep-meta" style="color:${tm.color}">${tm.label} &nbsp;·&nbsp; ${lj.env}</div>
+            </div>
+            <div class="dep-actions">
+              ${i>0?`<button class="dep-btn" title="Move up" onclick="moveDep(${j.id},${i},-1)">↑</button>`:'<span style="width:26px;display:inline-block"></span>'}
+              ${i<deps.length-1?`<button class="dep-btn" title="Move down" onclick="moveDep(${j.id},${i},1)">↓</button>`:'<span style="width:26px;display:inline-block"></span>'}
+              <button class="dep-btn danger" title="Remove" onclick="removeDep(${j.id},${i})">✕</button>
+            </div>
+          </div>`;
+        }).join('')
+      : `<div style="font-size:12px;color:var(--text3);padding:10px 0 6px">No steps added yet — use the dropdown below to link jobs in run order.</div>`;
+
+    // Add row
+    const addHTML = available.length
+      ? `<div class="dep-add">
+           <select class="dep-select" id="depSelect">
+             <option value="">— Pick a job to add as next step —</option>
+             ${available.map(x=>`<option value="${x.id}">[${TYPE_META[x.type]?.label||x.type}] ${esc(x.name)}</option>`).join('')}
+           </select>
+           <button class="btn btn-primary" onclick="addDep(${j.id})">Add step</button>
+         </div>`
+      : `<div style="font-size:12px;color:var(--text3);margin-top:8px">${jobs.length<=1?'No other jobs in registry yet.':'All jobs are already in this chain.'}</div>`;
+
+    // Flow chain
+    const flowHTML = deps.length
+      ? `<div class="doc-field" style="margin-top:16px">
+           <div class="doc-label" style="margin-bottom:8px">Run order — flow chain</div>
+           <div class="flow-wrap">${buildFlowSVG(j,deps)}</div>
+           <div style="font-size:11px;color:var(--text3);margin-top:6px">Click any box to open that job. Use ↑ ↓ above to reorder steps.</div>
+         </div>`
+      : '';
+
+    body.innerHTML=`
+      <div style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.6">
+        Link other jobs from the registry that this job calls or depends on, in the order they run.
+        For example: a BAT file that runs three SQL scripts — add each SQL job as a step below.
+      </div>
+      <div class="doc-field">
+        <div class="doc-label" style="margin-bottom:8px">Steps in this job's chain</div>
+        <div class="dep-list">${stepsHTML}</div>
+        ${addHTML}
+      </div>
+      ${flowHTML}`;
+
+  } else if(activeTab==='docs'){
+    body.innerHTML=`
+      <div class="doc-field">
+        <div class="doc-label">Description</div>
+        <div class="doc-value"><textarea onblur="saveField(${j.id},'desc',this.value)">${j.desc||''}</textarea></div>
+      </div>
+      <div class="doc-field">
+        <div class="doc-label">Purpose / Business Use</div>
+        <div class="doc-value"><textarea style="min-height:100px" onblur="saveField(${j.id},'purpose',this.value)" placeholder="Why does this job exist? What business process does it support? Who uses the output?">${j.purpose||''}</textarea></div>
+      </div>
+      ${isNoCode?`
+      <div class="doc-field">
+        <div class="doc-label">${j.type==='QLIK'?'App Location':j.type==='ALTXSCHED'?'Schedule Name / Path':'Workflow File Path'}</div>
+        <div class="doc-value"><textarea style="font-family:'IBM Plex Mono',monospace;font-size:12px" onblur="saveField(${j.id},'workflowPath',this.value)">${j.workflowPath||''}</textarea></div>
+      </div>
+      <div class="doc-field">
+        <div class="doc-label">Input Sources</div>
+        <div class="doc-value"><textarea style="min-height:80px" onblur="saveField(${j.id},'inputSources',this.value)" placeholder="Databases, files, ODBC connections, APIs…">${j.inputSources||''}</textarea></div>
+      </div>
+      <div class="doc-field">
+        <div class="doc-label">Output Targets</div>
+        <div class="doc-value"><textarea style="min-height:80px" onblur="saveField(${j.id},'outputTargets',this.value)" placeholder="Tables, files, dashboards, downstream jobs…">${j.outputTargets||''}</textarea></div>
+      </div>
+      <div class="doc-field">
+        <div class="doc-label">${j.type==='QLIK'?'Qlik Version / Platform':'Alteryx Version'}</div>
+        <div class="doc-value"><textarea onblur="saveField(${j.id},'alteryxVersion',this.value)" placeholder="e.g. Alteryx Designer 2023.2">${j.alteryxVersion||''}</textarea></div>
+      </div>`:''}
+      <div class="doc-field">
+        <div class="doc-label">Documentation / Notes</div>
+        <div class="doc-value"><textarea style="min-height:140px" onblur="saveField(${j.id},'notes',this.value)">${j.notes||''}</textarea></div>
+      </div>
+      <div class="doc-field">
+        <div class="doc-label">Tags</div>
+        <div class="tag-list">${(j.tags||[]).map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+      </div>`;
+  } else {
+    const ENV_ORDER = ['DEV','UAT','PROD'];
+    const curIdx = ENV_ORDER.indexOf(j.env);
+    const nextEnv = curIdx < ENV_ORDER.length-1 ? ENV_ORDER[curIdx+1] : null;
+    const nextLabel = nextEnv ? ENV_META[nextEnv].label : null;
+
+    // Build promotion track dots + lines
+    const trackHTML = ENV_ORDER.map((e,i) => {
+      const isDone    = i < curIdx;
+      const isCurrent = i === curIdx;
+      const dotClass  = isDone ? 'done' : isCurrent ? 'current' : '';
+      const lblClass  = isDone ? 'done' : isCurrent ? 'current' : '';
+      const lineClass = i < ENV_ORDER.length-1 ? (i < curIdx ? 'done' : '') : '';
+      return `
+        <div class="promo-step">
+          <div class="promo-dot ${dotClass}">${isDone?'✓':e[0]}</div>
+          <div class="promo-label ${lblClass}">${e}</div>
+        </div>
+        ${i < ENV_ORDER.length-1 ? `<div class="promo-line ${lineClass}"></div>` : ''}`;
+    }).join('');
+
+    // Promotion history
+    const history = (j.promoHistory||[]);
+    const histHTML = history.length ? `
+      <div class="promo-history">
+        <div class="doc-label" style="margin-bottom:8px">Promotion history</div>
+        ${history.slice().reverse().map(h=>`
+          <div class="promo-history-item">
+            <span class="promo-history-env" style="color:${ENV_META[h.to]?.color||'var(--text2)'}">→ ${h.to}</span>
+            <span class="promo-history-note">${esc(h.note||'No notes')}${h.override?' <span style="font-size:10px;color:var(--text3);background:var(--bg4);border:1px solid var(--border);border-radius:3px;padding:1px 5px">override</span>':''}</span>
+            <span class="promo-history-date">${h.date}</span>
+          </div>`).join('')}
+      </div>` : `<div style="font-size:12px;color:var(--text3);margin-top:4px">No promotions recorded yet.</div>`;
+
+    const promoBtnHTML = nextEnv
+      ? `<button class="promo-btn ${nextEnv==='PROD'?'to-prod':''}" onclick="showPromoConfirm(${j.id})">
+           Promote to ${nextEnv} →
+         </button>`
+      : `<button class="promo-btn at-prod" disabled>✓ In Production</button>`;
+
+    body.innerHTML=`
+      <div class="doc-field"><div class="doc-label">Job Name</div><div class="doc-value">${j.name}</div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="doc-field"><div class="doc-label">Type</div><div class="doc-value">${typeBadge(j.type)}</div></div>
+        <div class="doc-field"><div class="doc-label">Owner</div><div class="doc-value">${j.owner||'—'}</div></div>
+        <div class="doc-field"><div class="doc-label">Server / Path</div><div class="doc-value">${j.server||'—'}</div></div>
+        <div class="doc-field">
+          <div class="doc-label">Customer / Requestor</div>
+          <div class="doc-value" style="display:flex;flex-direction:column;gap:4px">
+            <input style="background:none;border:none;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%" value="${esc(j.customer||'')}" placeholder="e.g. CareSource, Analytics Team" onblur="saveField(${j.id},'customer',this.value)">
+            <input style="background:none;border:none;color:var(--text2);font-family:inherit;font-size:12px;outline:none;width:100%" value="${esc(j.customerContact||'')}" placeholder="Contact name or email" onblur="saveField(${j.id},'customerContact',this.value)">
+          </div>
+        </div>
+      </div>
+
+      <div class="doc-field">
+        <div class="doc-label" style="margin-bottom:8px">Schedule</div>
+        ${buildInfoScheduler(j)}
+      </div>
+      ${isNoCode && j.alteryxVersion?`<div class="doc-field"><div class="doc-label">${j.type==='QLIK'?'Qlik Version':'Alteryx Version'}</div><div class="doc-value">${j.alteryxVersion}</div></div>`:''}
+
+      <div class="doc-field" style="margin-top:4px">
+        <div class="doc-label">Environment</div>
+        <div class="promo-track">${trackHTML}</div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+          ${promoBtnHTML}
+          <div style="display:flex;align-items:center;gap:6px;margin-left:auto">
+            <span style="font-size:11px;color:var(--text3)">Override:</span>
+            <select class="form-select" style="width:auto;padding:5px 8px;font-size:12px" onchange="showOverrideConfirm(${j.id},this.value);this.value='${j.env}'">
+              <option value="${j.env}" disabled selected>${j.env} (current)</option>
+              ${ENV_ORDER.filter(e=>e!==j.env).map(e=>`<option value="${e}">${e}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+
+        <div class="promo-confirm" id="promoConfirm">
+          <div style="font-size:13px;font-weight:500;margin-bottom:10px;color:var(--amber)">
+            Confirm promotion to <span id="promoTarget"></span>
+          </div>
+          <div class="doc-label" style="margin-bottom:5px">Notes / reason for promotion</div>
+          <textarea class="form-input" id="promoNote" style="font-family:'DM Sans',sans-serif;min-height:60px;margin-bottom:10px" placeholder="e.g. UAT sign-off complete, approved by manager…"></textarea>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-primary" onclick="confirmPromo(${j.id})">Confirm Promotion</button>
+            <button class="btn" onclick="cancelPromo()">Cancel</button>
+          </div>
+        </div>
+
+        <div class="promo-confirm" id="overrideConfirm">
+          <div style="font-size:13px;font-weight:500;margin-bottom:10px;color:var(--text)">
+            Move to <span id="overrideTarget"></span> <span style="font-size:11px;color:var(--text3);font-weight:400">(manual override)</span>
+          </div>
+          <div class="doc-label" style="margin-bottom:5px">Reason for override</div>
+          <textarea class="form-input" id="overrideNote" style="font-family:'DM Sans',sans-serif;min-height:60px;margin-bottom:10px" placeholder="e.g. Rolling back to UAT for rework, skipping to PROD for hotfix…"></textarea>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-primary" onclick="confirmOverride(${j.id})">Apply Override</button>
+            <button class="btn" onclick="cancelOverride()">Cancel</button>
+          </div>
+        </div>
+
+        ${histHTML}
+      </div>
+
+      <div class="doc-field" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+        <div class="doc-label">Job Status</div>
+        <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
+          <button class="btn ${j.status==='active'?'btn-primary':''}" onclick="toggleStatus(${j.id})">
+            ${j.status==='active'?'● Active (click to disable)':'○ Disabled (click to enable)'}
+          </button>
+          <button class="btn" style="color:var(--red);border-color:var(--red)" onclick="deleteJob(${j.id})">Delete</button>
+        </div>
+      </div>`;
+  }
+}
+
+function saveField(id,field,val){
+  const j=jobs.find(x=>x.id===id);
+  if(j){j[field]=val;save();}
+}
+function toggleStatus(id){
+  const j=jobs.find(x=>x.id===id);
+  if(j){j.status=j.status==='active'?'disabled':'active';save();renderDetailTab();renderJobs();}
+}
+
+// ─── PROMOTION ───────────────────────────────────────────────────────────────
+const ENV_ORDER = ['DEV','UAT','PROD'];
+
+function showPromoConfirm(id){
+  const j=jobs.find(x=>x.id===id);
+  if(!j) return;
+  const curIdx = ENV_ORDER.indexOf(j.env);
+  const nextEnv = curIdx < ENV_ORDER.length-1 ? ENV_ORDER[curIdx+1] : null;
+  if(!nextEnv) return;
+  const box = document.getElementById('promoConfirm');
+  const tgt = document.getElementById('promoTarget');
+  if(box && tgt){
+    tgt.innerHTML = `<span style="color:${ENV_META[nextEnv].color};font-weight:600">${nextEnv}</span>`;
+    box.classList.add('open');
+    document.getElementById('promoNote').value='';
+    document.getElementById('promoNote').focus();
+  }
+}
+function cancelPromo(){
+  const box=document.getElementById('promoConfirm');
+  if(box) box.classList.remove('open');
+}
+
+let _pendingOverrideEnv = null;
+function showOverrideConfirm(id, targetEnv){
+  if(!targetEnv) return;
+  _pendingOverrideEnv = targetEnv;
+  const j=jobs.find(x=>x.id===id);
+  if(!j) return;
+  // Close promote confirm if open
+  cancelPromo();
+  const box=document.getElementById('overrideConfirm');
+  const tgt=document.getElementById('overrideTarget');
+  if(box && tgt){
+    tgt.innerHTML=`<span style="color:${ENV_META[targetEnv]?.color||'var(--text)'};font-weight:600">${targetEnv}</span>`;
+    box.classList.add('open');
+    document.getElementById('overrideNote').value='';
+    document.getElementById('overrideNote').focus();
+  }
+}
+function cancelOverride(){
+  const box=document.getElementById('overrideConfirm');
+  if(box) box.classList.remove('open');
+  _pendingOverrideEnv=null;
+}
+function confirmOverride(id){
+  const j=jobs.find(x=>x.id===id);
+  if(!j || !_pendingOverrideEnv) return;
+  const note=(document.getElementById('overrideNote')?.value||'').trim();
+  const now=new Date();
+  const dateStr=now.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  if(!j.promoHistory) j.promoHistory=[];
+  j.promoHistory.push({from:j.env, to:_pendingOverrideEnv, date:dateStr, note:(note||'Manual override'), override:true});
+  j.env=_pendingOverrideEnv;
+  _pendingOverrideEnv=null;
+  save();
+  renderDetailTab();
+  renderJobs();
+  document.getElementById('dpMeta').innerHTML=
+    typeBadge(j.type)+' '+envBadge(j.env)+' '+statusBadge(j.status)+
+    `<span style="font-size:12px;color:var(--text3)">${j.server||''}</span>`;
+}
+function confirmPromo(id){
+  const j=jobs.find(x=>x.id===id);
+  if(!j) return;
+  const curIdx = ENV_ORDER.indexOf(j.env);
+  const nextEnv = curIdx < ENV_ORDER.length-1 ? ENV_ORDER[curIdx+1] : null;
+  if(!nextEnv) return;
+  const note = (document.getElementById('promoNote')?.value||'').trim();
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  if(!j.promoHistory) j.promoHistory=[];
+  j.promoHistory.push({from:j.env, to:nextEnv, date:dateStr, note: note||'Promoted'});
+  j.env = nextEnv;
+  save();
+  renderDetailTab();
+  renderJobs();
+  // Refresh the header badges
+  document.getElementById('dpMeta').innerHTML=
+    typeBadge(j.type)+' '+envBadge(j.env)+' '+statusBadge(j.status)+
+    `<span style="font-size:12px;color:var(--text3)">${j.server||''}</span>`;
+}
+function deleteJob(id){
+  if(!confirm('Delete this job? This cannot be undone.')) return;
+  jobs=jobs.filter(x=>x.id!==id);save();closeDetail();renderJobs();
+}
+function copyCode(id){
+  const j=jobs.find(x=>x.id===id);
+  if(j && j.code) navigator.clipboard.writeText(j.code).then(()=>{
+    const btn=document.querySelector('.code-copy');
+    if(btn){btn.textContent='✓ Copied';setTimeout(()=>btn.textContent='⎘ Copy',1800);}
+  });
+}
+
+// ─── DEPENDENCIES ────────────────────────────────────────────────────────────
+function addDep(id){
+  const j=jobs.find(x=>x.id===id);
+  const sel=document.getElementById('depSelect');
+  if(!j||!sel||!sel.value) return;
+  const linkedId=parseInt(sel.value);
+  if(!j.deps) j.deps=[];
+  if(j.deps.find(d=>d.jobId===linkedId)) return;
+  j.deps.push({jobId:linkedId});
+  save();
+  renderDetailTab();
+}
+function removeDep(id,idx){
+  const j=jobs.find(x=>x.id===id);
+  if(!j||!j.deps) return;
+  j.deps.splice(idx,1);
+  save();
+  renderDetailTab();
+}
+function moveDep(id,idx,dir){
+  const j=jobs.find(x=>x.id===id);
+  if(!j||!j.deps) return;
+  const newIdx=idx+dir;
+  if(newIdx<0||newIdx>=j.deps.length) return;
+  const tmp=j.deps[idx]; j.deps[idx]=j.deps[newIdx]; j.deps[newIdx]=tmp;
+  save();
+  renderDetailTab();
+}
+
+function buildFlowSVG(parent, deps){
+  // Build node list: parent first, then linked jobs in order
+  const allNodes = [parent, ...deps.map(d=>jobs.find(x=>x.id===d.jobId)).filter(Boolean)];
+  const BOX_W=160, BOX_H=52, GAP=40, PAD=20;
+  const totalW = allNodes.length*(BOX_W+GAP)-GAP + PAD*2;
+  const H=BOX_H+PAD*2+30;
+
+  const nodes = allNodes.map((j,i)=>{
+    const x=PAD+i*(BOX_W+GAP);
+    const y=PAD+15;
+    const tm=TYPE_META[j.type]||{label:j.type,color:'#8b949e',bg:'rgba(139,148,158,.15)'};
+    const label = j.name.length>20 ? j.name.slice(0,19)+'…' : j.name;
+    const isParent = i===0;
+    return {x,y,label,color:tm.color,bg:tm.bg,typeLabel:tm.label,isParent};
+  });
+
+  const arrows = nodes.slice(0,-1).map((_,i)=>{
+    const x1=nodes[i].x+BOX_W;
+    const x2=nodes[i+1].x;
+    const y=nodes[i].y+BOX_H/2;
+    return `<line x1="${x1}" y1="${y}" x2="${x2-6}" y2="${y}" stroke="var(--border2)" stroke-width="1.5" marker-end="url(#arr)"/>`;
+  }).join('');
+
+  const boxes = nodes.map((n,i)=>`
+    <g style="cursor:pointer" onclick="openDetail(${allNodes[i].id})">
+      <rect x="${n.x}" y="${n.y}" width="${BOX_W}" height="${BOX_H}" rx="6"
+        fill="${n.isParent?'rgba(88,166,255,.12)':n.bg}"
+        stroke="${n.isParent?'#58a6ff':n.color}" stroke-width="${n.isParent?1.5:1}"/>
+      <text x="${n.x+BOX_W/2}" y="${n.y+16}" text-anchor="middle"
+        font-family="DM Sans,sans-serif" font-size="10" fill="${n.color}" font-weight="600">
+        ${n.typeLabel}${n.isParent?' (this)':''}
+      </text>
+      <text x="${n.x+BOX_W/2}" y="${n.y+32}" text-anchor="middle"
+        font-family="DM Sans,sans-serif" font-size="11.5" fill="#e6edf3" font-weight="500">
+        ${n.label}
+      </text>
+      <text x="${n.x+BOX_W/2}" y="${n.y+46}" text-anchor="middle"
+        font-family="DM Sans,sans-serif" font-size="10" fill="#6e7681">
+        Step ${i===0?'—':i}
+      </text>
+    </g>`).join('');
+
+  const stepNums = nodes.map((n,i)=>i===0?'':`
+    <text x="${n.x+BOX_W/2}" y="${n.y-4}" text-anchor="middle"
+      font-family="DM Sans,sans-serif" font-size="10" fill="#6e7681">
+    </text>`).join('');
+
+  return `<svg width="${totalW}" height="${H}" viewBox="0 0 ${totalW} ${H}" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M2 1L8 5L2 9" fill="none" stroke="#444c56" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </marker>
+    </defs>
+    ${arrows}
+    ${boxes}
+    ${stepNums}
+  </svg>`;
+}
+
+// ─── SYNTAX HIGHLIGHT ────────────────────────────────────────────────────────
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function highlight(code, lang){
+  let s = esc(code);
+  if(lang==='sql'){
+    s=s.replace(/\b(SELECT|INSERT|UPDATE|DELETE|FROM|WHERE|INTO|VALUES|SET|JOIN|LEFT|RIGHT|INNER|ON|AS|AND|OR|NOT|IN|LIKE|ORDER BY|GROUP BY|HAVING|WITH|MERGE|USING|WHEN|MATCHED|THEN|BEGIN|END|DECLARE|PRINT|USE|GO|CAST|DATEADD|DATEDIFF|GETDATE|DATEPART|COUNT|SUM|AVG|MAX|MIN|EXEC|TRUNCATE|TOP|DISTINCT|NULL|IS|BY|IF|ELSE|WHILE|WAITFOR|DELAY|NOCOUNT|ON|OFF|ROWCOUNT|IDENTITY)\b/gi, '<span class="kw">$1</span>');
+    s=s.replace(/'([^']*)'/g,"<span class='str'>'$1'</span>");
+    s=s.replace(/--([^\n]*)/g,"<span class='cm'>--$1</span>");
+    s=s.replace(/\b(\d+)\b/g,"<span class='num'>$1</span>");
+  } else if(lang==='powershell'){
+    s=s.replace(/\b(param|Set-StrictMode|Version|if|else|foreach|for|while|Write-Host|Write-Error|exit|return|function|begin|process|end|try|catch|finally|throw|switch|break|continue|Import-Module|Export-Csv|Get-Date|Format-Date|Out-File|Invoke-Sqlcmd|Join-Path|Get-ChildItem)\b/g,"<span class='kw'>$1</span>");
+    s=s.replace(/\$[\w]+/g,"<span class='var'>$&</span>");
+    s=s.replace(/"([^"]*)"/g,'<span class="str">"$1"</span>');
+    s=s.replace(/#([^\n]*)/g,"<span class='cm'>#$1</span>");
+    s=s.replace(/\b(\d+)\b/g,"<span class='num'>$1</span>");
+  } else if(lang==='python'){
+    s=s.replace(/\b(import|from|def|class|if|elif|else|for|while|return|try|except|finally|with|as|pass|break|continue|not|and|or|in|is|None|True|False|print|len|range|open|str|int|float|list|dict|tuple)\b/g,"<span class='kw'>$1</span>");
+    s=s.replace(/"""[\s\S]*?"""|'''[\s\S]*?'''/g,"<span class='cm'>$&</span>");
+    s=s.replace(/("([^"]*)")|('([^']*)')/g,"<span class='str'>$&</span>");
+    s=s.replace(/#([^\n]*)/g,"<span class='cm'>#$1</span>");
+    s=s.replace(/\b(\d+)\b/g,"<span class='num'>$1</span>");
+  } else if(lang==='bat'){
+    s=s.replace(/\b(echo|set|if|else|goto|call|exit|rem|for|setlocal|endlocal|pause|cls|del|copy|move|mkdir|rmdir)\b/gi,"<span class='kw'>$1</span>");
+    s=s.replace(/REM([^\n]*)/gi,"<span class='cm'>REM$1</span>");
+    s=s.replace(/%%[\w]+%%|%[\w]+%/g,"<span class='var'>$&</span>");
+    s=s.replace(/"([^"]*)"/g,'<span class="str">"$1"</span>');
+  }
+  return s;
+}
+
+// ─── AI ASSISTANT ─────────────────────────────────────────────────────────────
+function toggleAI(){
+  const b=document.getElementById('aiBody');
+  const isOpen=b.classList.contains('open');
+  b.classList.toggle('open');
+  document.getElementById('aiChevron').textContent=isOpen?'▲':'▼';
+}
+function askQuick(q){document.getElementById('aiInput').value=q;sendAI();}
+
+async function sendAI(){
+  if(!activeJobId) return;
+  const input=document.getElementById('aiInput');
+  const q=input.value.trim();
+  if(!q) return;
+  const j=jobs.find(x=>x.id===activeJobId);
+  const msgs=document.getElementById('aiMessages');
+  
+  // Ensure panel open
+  document.getElementById('aiBody').classList.add('open');
+  document.getElementById('aiChevron').textContent='▼';
+
+  msgs.innerHTML+=`<div class="ai-msg user">${esc(q)}</div>`;
+  const loadDiv=document.createElement('div');
+  loadDiv.className='ai-msg loading';loadDiv.textContent='Thinking…';
+  msgs.appendChild(loadDiv);
+  msgs.scrollTop=msgs.scrollHeight;
+  input.value='';
+
+  const systemPrompt=`You are an IS job registry assistant for a Health Data Operations team. 
+You have context about the following job:
+Name: ${j.name}
+Type: ${TYPE_META[j.type]?.label||j.type}
+Environment: ${j.env}
+Schedule: ${j.schedule||'N/A'}
+Owner: ${j.owner||'N/A'}
+Customer / Requestor: ${j.customer||'N/A'}${j.customerContact?' ('+j.customerContact+')':''}
+Server: ${j.server||'N/A'}
+Description: ${j.desc||'N/A'}
+Purpose / Business Use: ${j.purpose||'N/A'}
+${j.workflowPath?`Workflow Path: ${j.workflowPath}`:''}
+${j.inputSources?`Input Sources: ${j.inputSources}`:''}
+${j.outputTargets?`Output Targets: ${j.outputTargets}`:''}
+${j.alteryxVersion?`Version: ${j.alteryxVersion}`:''}
+Documentation: ${j.notes||'N/A'}
+Code:
+${j.code||'(no code — visual/canvas-based tool)'}
+
+Answer questions about this job concisely. Focus on practical IS/IT operations advice. Be direct and helpful.`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        system:systemPrompt,
+        messages:[{role:'user',content:q}]
+      })
+    });
+    const data=await res.json();
+    const reply=data?.content?.[0]?.text||'Sorry, no response received.';
+    loadDiv.className='ai-msg assistant';
+    loadDiv.textContent=reply;
+  } catch(e){
+    loadDiv.className='ai-msg assistant';
+    loadDiv.textContent='Error connecting to AI. Please try again.';
+  }
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+// ─── SCHEDULER ───────────────────────────────────────────────────────────────
+const FREQ_NEEDS_DAY  = ['Weekly','Biweekly'];
+const FREQ_NEEDS_DOM  = ['Monthly','Quarterly'];
+const FREQ_NEEDS_TIME = ['Daily','Weekly','Biweekly','Monthly','Quarterly'];
+const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+const DOMS = [...Array.from({length:28},(_,i)=>({v:String(i+1),l:`${i+1}${['st','nd','rd'][[1,2,3].indexOf(i+1)]||'th'}`})),{v:'Last',l:'Last day'}];
+
+function fmt12(t){
+  if(!t) return '';
+  const [h,m]=t.split(':').map(Number);
+  const ampm=h>=12?'PM':'AM';
+  const h12=h%12||12;
+  return `${h12}:${String(m).padStart(2,'0')} ${ampm}`;
+}
+function buildScheduleStr(freq,day,dom,time){
+  if(!freq||freq==='On Demand') return 'On Demand';
+  const t=fmt12(time);
+  if(FREQ_NEEDS_DAY.includes(freq))  return `${freq} — ${day||'Monday'}${t?' at '+t:''}`;
+  if(FREQ_NEEDS_DOM.includes(freq)){
+    const d=dom||'1'; const suffix=d==='Last'?'Last day':`${d}${['st','nd','rd'][[1,2,3].indexOf(Number(d))]||'th'}`;
+    return `${freq} — ${suffix}${t?' at '+t:''}`;
+  }
+  return `${freq}${t?' at '+t:''}`;
+}
+function parseScheduleStr(str){
+  // Try to parse an existing schedule string back into components
+  if(!str||str==='—') return {freq:'',day:'Monday',dom:'1',time:'02:00'};
+  if(str==='On Demand') return {freq:'On Demand',day:'Monday',dom:'1',time:'02:00'};
+  const freqs=['Daily','Weekly','Biweekly','Monthly','Quarterly'];
+  let freq='', day='Monday', dom='1', time='02:00';
+  for(const f of freqs){ if(str.startsWith(f)){freq=f;break;} }
+  // Parse time
+  const tMatch=str.match(/(\d{1,2}:\d{2}\s?[AP]M)/i);
+  if(tMatch){
+    const [hm,ampm]=tMatch[1].trim().split(/\s/);
+    let [hh,mm]=hm.split(':').map(Number);
+    if(ampm?.toUpperCase()==='PM'&&hh!==12) hh+=12;
+    if(ampm?.toUpperCase()==='AM'&&hh===12) hh=0;
+    time=`${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`;
+  }
+  // Parse day
+  for(const d of DAYS){ if(str.includes(d)){day=d;break;} }
+  // Parse dom
+  const domMatch=str.match(/(\d{1,2})(st|nd|rd|th)/i);
+  if(domMatch) dom=domMatch[1];
+  if(str.includes('Last day')) dom='Last';
+  return {freq,day,dom,time};
+}
+
+// Modal scheduler
+function onModalFreqChange(){
+  const freq=document.getElementById('f-freq').value;
+  const needDay  = FREQ_NEEDS_DAY.includes(freq);
+  const needDom  = FREQ_NEEDS_DOM.includes(freq);
+  const needTime = FREQ_NEEDS_TIME.includes(freq);
+  document.getElementById('modal-day-group').style.display = needDay  ? 'flex' : 'none';
+  document.getElementById('modal-dom-group').style.display = needDom  ? 'flex' : 'none';
+  document.getElementById('modal-time-group').style.display= needTime ? 'flex' : 'none';
+  if(needDay){
+    document.getElementById('modal-day-label').textContent =
+      freq==='Biweekly' ? 'Starting day' : 'Day of week';
+  }
+  updateModalSummary();
+}
+function updateModalSummary(){
+  const freq=document.getElementById('f-freq').value;
+  const day =document.getElementById('f-day')?.value||'Monday';
+  const dom =document.getElementById('f-dom')?.value||'1';
+  const time=document.getElementById('f-time')?.value||'';
+  const summary=document.getElementById('modal-sched-summary');
+  const str=buildScheduleStr(freq,day,dom,time);
+  if(freq && str){
+    summary.textContent=str;
+    summary.style.display='inline-block';
+  } else {
+    summary.style.display='none';
+  }
+}
+function getModalScheduleStr(){
+  const freq=document.getElementById('f-freq').value;
+  const day =document.getElementById('f-day')?.value||'Monday';
+  const dom =document.getElementById('f-dom')?.value||'1';
+  const time=document.getElementById('f-time')?.value||'';
+  return buildScheduleStr(freq,day,dom,time);
+}
+function resetModalScheduler(){
+  document.getElementById('f-freq').value='';
+  document.getElementById('modal-day-group').style.display='none';
+  document.getElementById('modal-dom-group').style.display='none';
+  document.getElementById('modal-time-group').style.display='none';
+  document.getElementById('modal-sched-summary').style.display='none';
+  if(document.getElementById('f-time')) document.getElementById('f-time').value='02:00';
+}
+
+// Info tab inline scheduler
+function buildInfoScheduler(j){
+  const {freq,day,dom,time}=parseScheduleStr(j.schedule);
+  const needDay  = FREQ_NEEDS_DAY.includes(freq);
+  const needDom  = FREQ_NEEDS_DOM.includes(freq);
+  const needTime = FREQ_NEEDS_TIME.includes(freq);
+  const domOptions=DOMS.map(d=>`<option value="${d.v}" ${dom===d.v?'selected':''}>${d.l}</option>`).join('');
+  const dayOptions=DAYS.map(d=>`<option value="${d}" ${day===d?'selected':''}>${d}</option>`).join('');
+  const freqOptions=['','On Demand','Daily','Weekly','Biweekly','Monthly','Quarterly']
+    .map(f=>`<option value="${f}" ${freq===f?'selected':''}>${f||'— Select —'}</option>`).join('');
+  return `
+    <div class="sched-row">
+      <div class="sched-group">
+        <label>Frequency</label>
+        <select id="info-freq" onchange="onInfoFreqChange(${j.id})">${freqOptions}</select>
+      </div>
+      <div class="sched-group" id="info-day-group" style="display:${needDay?'flex':'none'}">
+        <label id="info-day-label">${freq==='Biweekly'?'Starting day':'Day of week'}</label>
+        <select id="info-day" onchange="saveInfoSchedule(${j.id})">${dayOptions}</select>
+      </div>
+      <div class="sched-group" id="info-dom-group" style="display:${needDom?'flex':'none'}">
+        <label>Day of month</label>
+        <select id="info-dom" onchange="saveInfoSchedule(${j.id})">${domOptions}</select>
+      </div>
+      <div class="sched-group" id="info-time-group" style="display:${needTime?'flex':'none'}">
+        <label>Time</label>
+        <input type="time" id="info-time" value="${time}" onchange="saveInfoSchedule(${j.id})">
+      </div>
+    </div>
+    <div id="info-sched-summary" class="sched-summary" style="${j.schedule&&j.schedule!=='—'?'':'display:none'}">${j.schedule||''}</div>`;
+}
+function onInfoFreqChange(id){
+  const freq=document.getElementById('info-freq').value;
+  const needDay  = FREQ_NEEDS_DAY.includes(freq);
+  const needDom  = FREQ_NEEDS_DOM.includes(freq);
+  const needTime = FREQ_NEEDS_TIME.includes(freq);
+  document.getElementById('info-day-group').style.display = needDay  ? 'flex' : 'none';
+  document.getElementById('info-dom-group').style.display = needDom  ? 'flex' : 'none';
+  document.getElementById('info-time-group').style.display= needTime ? 'flex' : 'none';
+  if(needDay){
+    document.getElementById('info-day-label').textContent =
+      freq==='Biweekly' ? 'Starting day' : 'Day of week';
+  }
+  saveInfoSchedule(id);
+}
+function saveInfoSchedule(id){
+  const j=jobs.find(x=>x.id===id);
+  if(!j) return;
+  const freq=document.getElementById('info-freq')?.value||'';
+  const day =document.getElementById('info-day')?.value||'Monday';
+  const dom =document.getElementById('info-dom')?.value||'1';
+  const time=document.getElementById('info-time')?.value||'';
+  const str=buildScheduleStr(freq,day,dom,time);
+  j.schedule=str;
+  save();
+  renderJobs();
+  const sumEl=document.getElementById('info-sched-summary');
+  if(sumEl){
+    sumEl.textContent=str;
+    sumEl.style.display=str?'inline-block':'none';
+  }
+}
+
+// ─── NEW JOB MODAL ────────────────────────────────────────────────────────────
+function toggleModalFields(){
+  const type = document.getElementById('f-type').value;
+  const isNoCode = TYPE_META[type]?.noCode;
+  document.getElementById('inventoryFields').style.display = isNoCode ? 'block' : 'none';
+  document.getElementById('codeField').style.display = isNoCode ? 'none' : 'block';
+  if(isNoCode){
+    const isQlik = type === 'QLIK';
+    const isAltxSched = type === 'ALTXSCHED';
+    document.getElementById('f-workflowpath-label').textContent =
+      isQlik       ? 'App Location (Qlik Hub path)' :
+      isAltxSched  ? 'Schedule Name / Server Path' :
+                     'Workflow File Path (.yxmd)';
+    document.getElementById('f-version-label').textContent =
+      isQlik ? 'Qlik Version / Platform' : 'Alteryx Version';
+  }
+}
+function openModal(){
+  document.getElementById('modalOverlay').classList.add('open');
+  toggleModalFields();
+}
+function closeModal(){
+  document.getElementById('modalOverlay').classList.remove('open');
+  ['f-name','f-desc','f-purpose','f-owner','f-customer','f-customerContact','f-server','f-code','f-notes','f-tags','f-workflowPath','f-inputSources','f-outputTargets','f-alteryxVersion'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.value='';
+  });
+  document.getElementById('f-type').value='SQL';
+  resetModalScheduler();
+  toggleModalFields();
+}
+function saveJob(){
+  const name=document.getElementById('f-name').value.trim();
+  if(!name){alert('Job name is required.');return;}
+  const type = document.getElementById('f-type').value;
+  const isNoCode = TYPE_META[type]?.noCode;
+  const newJob={
+    id: Date.now(),
+    name,
+    desc:     document.getElementById('f-desc').value.trim(),
+    purpose:  document.getElementById('f-purpose').value.trim(),
+    type,
+    env:      document.getElementById('f-env').value,
+    schedule: getModalScheduleStr(),
+    owner:    document.getElementById('f-owner').value.trim(),
+    customer: document.getElementById('f-customer').value.trim(),
+    customerContact: document.getElementById('f-customerContact').value.trim(),
+    server:   document.getElementById('f-server').value.trim(),
+    code:     isNoCode ? '' : document.getElementById('f-code').value,
+    workflowPath:   isNoCode ? document.getElementById('f-workflowPath').value.trim() : '',
+    inputSources:   isNoCode ? document.getElementById('f-inputSources').value.trim() : '',
+    outputTargets:  isNoCode ? document.getElementById('f-outputTargets').value.trim() : '',
+    alteryxVersion: isNoCode ? document.getElementById('f-alteryxVersion').value.trim() : '',
+    notes:    document.getElementById('f-notes').value.trim(),
+    tags:     document.getElementById('f-tags').value.split(',').map(t=>t.trim()).filter(Boolean),
+    status:   'active',
+  };
+  jobs.unshift(newJob);
+  save();
+  closeModal();
+  renderJobs();
+  openDetail(newJob.id);
+}
+
+// ─── AUTH ─────────────────────────────────────────────────────────────────────
+function getUsers(){ return JSON.parse(localStorage.getItem('isJobUsers')||'[]'); }
+function saveUsers(u){ localStorage.setItem('isJobUsers',JSON.stringify(u)); }
+function getSession(){ return JSON.parse(localStorage.getItem('isJobSession')||'null'); }
+function saveSession(s){ localStorage.setItem('isJobSession',JSON.stringify(s)); }
+function clearSession(){ localStorage.removeItem('isJobSession'); }
+
+function showApp(){
+  document.getElementById('authScreen').style.display='none';
+  document.getElementById('appShell').style.display='block';
+  const s=getSession();
+  if(!s) return;
+  const initials=(s.firstName[0]+(s.lastName[0]||'')).toUpperCase();
+  document.getElementById('userAvatar').textContent=initials;
+  document.getElementById('udName').textContent=s.firstName+' '+s.lastName;
+  document.getElementById('udEmail').textContent=s.email;
+  document.getElementById('udRole').textContent=(s.jobTitle||'')+(s.department?' · '+s.department:'');
+  const al=document.getElementById('adminLink');
+  if(al) al.style.display=s.isAdmin?'flex':'none';
+  renderTypesUI();
+  renderJobs();
+}
+function showAuth(){
+  document.getElementById('appShell').style.display='none';
+  document.getElementById('authScreen').style.display='flex';
+}
+function showSI(){
+  document.getElementById('caCard').style.display='none';
+  document.getElementById('siCard').style.display='block';
+  clearAErr();
+}
+function showCA(){
+  document.getElementById('siCard').style.display='none';
+  document.getElementById('caCard').style.display='block';
+  clearAErr();
+}
+function clearAErr(){
+  ['si-err','ca-err'].forEach(id=>{const e=document.getElementById(id);if(e){e.textContent='';e.classList.remove('show');}});
+  document.querySelectorAll('.auth-field input').forEach(i=>i.classList.remove('err'));
+}
+function aErr(id,msg,fields=[]){
+  const e=document.getElementById(id);if(e){e.textContent=msg;e.classList.add('show');}
+  fields.forEach(f=>{const el=document.getElementById(f);if(el)el.classList.add('err');});
+}
+function signIn(){
+  clearAErr();
+  const email=(document.getElementById('si-email').value||'').trim().toLowerCase();
+  const pass=document.getElementById('si-pass').value||'';
+  if(!email){aErr('si-err','Email is required.',['si-email']);return;}
+  if(!pass){aErr('si-err','Password is required.',['si-pass']);return;}
+  const user=getUsers().find(u=>u.email===email);
+  if(!user){aErr('si-err','No account found with that email.',['si-email']);return;}
+  if(user.password!==btoa(pass)){aErr('si-err','Incorrect password.',['si-pass']);return;}
+  saveSession({email:user.email,firstName:user.firstName,lastName:user.lastName,
+               jobTitle:user.jobTitle,department:user.department,isAdmin:!!user.isAdmin});
+  showApp();
+}
+function createAcct(){
+  clearAErr();
+  const first=(document.getElementById('ca-first').value||'').trim();
+  const last=(document.getElementById('ca-last').value||'').trim();
+  const email=(document.getElementById('ca-email').value||'').trim().toLowerCase();
+  const title=(document.getElementById('ca-title').value||'').trim();
+  const dept=(document.getElementById('ca-dept').value||'').trim();
+  const pass=document.getElementById('ca-pass').value||'';
+  const confirm=document.getElementById('ca-confirm').value||'';
+  if(!first){aErr('ca-err','First name is required.',['ca-first']);return;}
+  if(!last){aErr('ca-err','Last name is required.',['ca-last']);return;}
+  if(!email||!email.includes('@')){aErr('ca-err','Valid email required.',['ca-email']);return;}
+  if(pass.length<8){aErr('ca-err','Password must be at least 8 characters.',['ca-pass']);return;}
+  if(pass!==confirm){aErr('ca-err','Passwords do not match.',['ca-pass','ca-confirm']);return;}
+  const users=getUsers();
+  if(users.find(u=>u.email===email)){aErr('ca-err','An account with that email already exists.',['ca-email']);return;}
+  const isAdmin=users.length===0; // first account = auto admin
+  users.push({email,firstName:first,lastName:last,jobTitle:title,department:dept,
+              password:btoa(pass),isAdmin,created:new Date().toISOString()});
+  saveUsers(users);
+  saveSession({email,firstName:first,lastName:last,jobTitle:title,department:dept,isAdmin});
+  showApp();
+}
+function signOut(){
+  clearSession();
+  toggleUD(false);
+  document.getElementById('si-email').value='';
+  document.getElementById('si-pass').value='';
+  showAuth(); showSI();
+}
+function pwStrength(val){
+  const bar=document.getElementById('strBar');
+  const lbl=document.getElementById('strLbl');
+  if(!bar||!lbl) return;
+  let s=0;
+  if(val.length>=8)s++;if(val.length>=12)s++;
+  if(/[A-Z]/.test(val))s++;if(/[0-9]/.test(val))s++;if(/[^A-Za-z0-9]/.test(val))s++;
+  const lvls=[{p:0,c:'transparent',l:''},{p:25,c:'#f85149',l:'Weak'},{p:50,c:'#d29922',l:'Fair'},{p:75,c:'#58a6ff',l:'Good'},{p:100,c:'#3fb950',l:'Strong'}];
+  const lvl=lvls[Math.min(s,4)];
+  bar.style.width=lvl.p+'%';bar.style.background=lvl.c;
+  lbl.textContent=lvl.l;lbl.style.color=lvl.c;
+}
+function toggleUD(force){
+  const dd=document.getElementById('userDD');
+  const open=force!==undefined?force:!dd.classList.contains('open');
+  dd.classList.toggle('open',open);
+  if(open) setTimeout(()=>document.addEventListener('click',closeUDOut,{once:true}),0);
+}
+function closeUDOut(e){
+  const dd=document.getElementById('userDD');
+  if(dd&&!dd.contains(e.target)) dd.classList.remove('open');
+}
+
+// ─── ADMIN ────────────────────────────────────────────────────────────────────
+let _tmpPass='', _tmpEmail='';
+function openAdmin(){
+  if(!getSession()?.isAdmin) return;
+  toggleUD(false);
+  renderAdmin();
+  document.getElementById('adminOverlay').style.display='flex';
+  document.getElementById('tmpBox').classList.remove('show');
+}
+function closeAdmin(){ document.getElementById('adminOverlay').style.display='none'; }
+function renderAdmin(){
+  const me=getSession();
+  const users=getUsers();
+  const list=document.getElementById('adminList');
+  if(!users.length){list.innerHTML='<div style="font-size:12px;color:var(--text3)">No users yet.</div>';return;}
+  list.innerHTML=users.map(u=>{
+    const init=(u.firstName[0]+(u.lastName[0]||'')).toUpperCase();
+    const isSelf=u.email===me.email;
+    const joined=u.created?new Date(u.created).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—';
+    return `<div class="urow">
+      <div class="urow-av" style="${u.isAdmin?'background:var(--amber-bg);border-color:var(--amber);color:var(--amber)':''}">${init}</div>
+      <div class="urow-info">
+        <div class="urow-name">${esc(u.firstName+' '+u.lastName)}
+          ${u.isAdmin?'<span class="admin-badge">Admin</span>':''}
+          ${isSelf?'<span style="font-size:10px;color:var(--text3)">(you)</span>':''}
+        </div>
+        <div class="urow-meta">${esc(u.email)} · ${esc(u.jobTitle||'—')} · Joined ${joined}</div>
+      </div>
+      <div class="urow-btns">
+        <button class="btn" style="font-size:11px;padding:4px 10px" onclick="resetPw('${u.email}')">Reset password</button>
+        ${!isSelf?`<button class="btn" style="font-size:11px;padding:4px 10px" onclick="toggleAdm('${u.email}')">${u.isAdmin?'Remove admin':'Make admin'}</button>`:''}
+        ${!isSelf?`<button class="btn" style="font-size:11px;padding:4px 10px;color:var(--red);border-color:var(--red)" onclick="removeUsr('${u.email}')">Remove</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+function resetPw(email){
+  const users=getUsers();
+  const user=users.find(u=>u.email===email);
+  if(!user) return;
+  const words=['River','Delta','Maple','Stone','Cloud','Ridge','Cedar','Ember','Frost','Harbor'];
+  const tmp=words[Math.floor(Math.random()*words.length)]+words[Math.floor(Math.random()*words.length)]+(10+Math.floor(Math.random()*90));
+  user.password=btoa(tmp);
+  saveUsers(users);
+  _tmpPass=tmp; _tmpEmail=email;
+  document.getElementById('tmpUser').textContent=user.firstName+' '+user.lastName+' ('+email+')';
+  document.getElementById('tmpCode').textContent=tmp;
+  const box=document.getElementById('tmpBox');
+  box.classList.add('show');
+  box.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function copyTmp(){
+  navigator.clipboard.writeText(_tmpPass).then(()=>{
+    const btn=document.querySelector('#tmpBox .btn');
+    if(btn){btn.textContent='✓ Copied';setTimeout(()=>btn.textContent='⎘ Copy',1800);}
+  });
+}
+function toggleAdm(email){
+  const me=getSession();
+  if(email===me.email) return;
+  const users=getUsers();
+  const u=users.find(x=>x.email===email);
+  if(u){u.isAdmin=!u.isAdmin;saveUsers(users);renderAdmin();}
+}
+function removeUsr(email){
+  const me=getSession();
+  if(email===me.email) return;
+  if(!confirm('Remove this user? They will no longer be able to sign in.')) return;
+  saveUsers(getUsers().filter(u=>u.email!==email));
+  renderAdmin();
+}
+
+// ─── TYPE MANAGER ────────────────────────────────────────────────────────────
+const TYPE_COLORS = [
+  '#58a6ff','#bc8cff','#f0883e','#3fb950','#f85149',
+  '#d29922','#00a6e0','#52cc74','#0082b3','#e06c75',
+  '#56b6c2','#c678dd','#61afef','#98c379','#e5c07b',
+  '#abb2bf','#d19a66','#be5046',
+];
+let _tmSection = 'code';
+let _editingTypeKey = null;
+
+function openTypesMgr(){
+  _editingTypeKey=null;
+  resetTMForm();
+  renderTMColorGrid('#58a6ff');
+  renderTMList();
+  document.getElementById('typesMgrOverlay').style.display='flex';
+}
+function closeTypesMgr(){ document.getElementById('typesMgrOverlay').style.display='none'; }
+
+function switchTMTab(section, el){
+  _tmSection=section;
+  document.querySelectorAll('#typesMgrOverlay .detail-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tm-section').value=section;
+  renderTMList();
+}
+
+function renderTMColorGrid(selected){
+  document.getElementById('tmColorGrid').innerHTML = TYPE_COLORS.map(c=>`
+    <div class="color-opt ${c===selected?'selected':''}"
+         style="background:${c}"
+         onclick="selectTMColor('${c}',this)"
+         title="${c}"></div>`).join('');
+  document.getElementById('tm-color').value=selected;
+}
+function selectTMColor(c, el){
+  document.querySelectorAll('.color-opt').forEach(o=>o.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('tm-color').value=c;
+}
+
+function renderTMList(){
+  const list=document.getElementById('tmList');
+  const entries=Object.entries(TYPE_META).filter(([,v])=>v.section===_tmSection);
+  if(!entries.length){
+    list.innerHTML='<div style="font-size:12px;color:var(--text3);padding:4px 0">No types in this section yet.</div>';
+    return;
+  }
+  list.innerHTML=entries.map(([k,v])=>`
+    <div class="type-row">
+      <div class="type-swatch" style="background:${v.color}"></div>
+      <div class="type-row-label">
+        ${esc(v.label)}
+        <span style="font-size:10px;color:var(--text3);font-family:'IBM Plex Mono',monospace;background:var(--bg4);border:1px solid var(--border);border-radius:3px;padding:1px 5px;margin-left:4px">${k}</span>
+        ${v.builtin?'<span style="font-size:10px;color:var(--text3);margin-left:4px">built-in</span>':''}
+      </div>
+      <div class="type-row-section">${v.noCode?'Inventory only':'Has code'}</div>
+      <div class="type-row-btns">
+        <button class="btn" style="font-size:11px;padding:3px 9px" onclick="editType('${k}')">Edit</button>
+        ${!v.builtin
+          ? `<button class="btn" style="font-size:11px;padding:3px 9px;color:var(--red);border-color:var(--red)" onclick="deleteType('${k}')">Delete</button>`
+          : `<span style="font-size:11px;color:var(--text3);padding:3px 6px">no delete</span>`}
+      </div>
+    </div>`).join('');
+}
+
+function editType(key){
+  const t=TYPE_META[key];
+  if(!t) return;
+  _editingTypeKey=key;
+  document.getElementById('tm-label').value=t.label;
+  document.getElementById('tm-key').value=key;
+  document.getElementById('tm-key').disabled=true;
+  document.getElementById('tm-nocode').value=String(!!t.noCode);
+  document.getElementById('tm-nocode').disabled=!!t.builtin;
+  document.getElementById('tm-section').value=t.section;
+  document.getElementById('tm-section').disabled=!!t.builtin;
+  renderTMColorGrid(t.color);
+  document.getElementById('tmFormTitle').textContent=
+    t.builtin ? `Edit built-in type — ${t.label} (label & color only)` : `Edit type — ${t.label}`;
+  document.getElementById('tm-err').style.display='none';
+  // Scroll form into view
+  document.getElementById('tm-label').scrollIntoView({behavior:'smooth',block:'nearest'});
+  document.getElementById('tm-label').focus();
+}
+
+function resetTMForm(){
+  _editingTypeKey=null;
+  document.getElementById('tm-label').value='';
+  document.getElementById('tm-key').value='';
+  document.getElementById('tm-key').disabled=false;
+  document.getElementById('tm-nocode').value='false';
+  document.getElementById('tm-nocode').disabled=false;
+  document.getElementById('tm-section').value=_tmSection;
+  document.getElementById('tm-section').disabled=false;
+  renderTMColorGrid('#58a6ff');
+  document.getElementById('tmFormTitle').textContent='Add new type';
+  document.getElementById('tm-err').style.display='none';
+}
+
+function saveType(){
+  const label=(document.getElementById('tm-label').value||'').trim();
+  const key=(document.getElementById('tm-key').value||'').trim().toUpperCase();
+  const color=document.getElementById('tm-color').value||'#8b949e';
+  const errEl=document.getElementById('tm-err');
+  errEl.style.display='none';
+
+  if(!label){errEl.textContent='Label is required.';errEl.style.display='block';return;}
+  if(!key){errEl.textContent='Key is required.';errEl.style.display='block';return;}
+  if(!/^[A-Z0-9]+$/.test(key)){errEl.textContent='Key must be letters and numbers only.';errEl.style.display='block';return;}
+
+  const isBuiltinEdit = _editingTypeKey && BUILTIN_TYPES[_editingTypeKey];
+  const isNewType = !_editingTypeKey;
+
+  // Key conflict check — only for new types
+  if(isNewType && (BUILTIN_TYPES[key] || getCustomTypes()[key])){
+    errEl.textContent=`Key "${key}" already exists. Choose a different key.`;
+    errEl.style.display='block';return;
+  }
+
+  const custom=getCustomTypes();
+  const saveKey=_editingTypeKey||key;
+
+  if(isBuiltinEdit){
+    // For built-ins, store only the overridable fields (label, color)
+    // Keep noCode and section from the original builtin
+    const orig=BUILTIN_TYPES[saveKey];
+    custom[saveKey]={
+      label, color,
+      noCode: orig.noCode,
+      section: orig.section,
+      _builtinOverride: true
+    };
+  } else {
+    const noCode=document.getElementById('tm-nocode').value==='true';
+    const section=document.getElementById('tm-section').value;
+    custom[saveKey]={label, color, noCode, section};
+  }
+
+  saveCustomTypes(custom);
+  TYPE_META=buildTypeMeta();
+  renderTypesUI();
+  renderTMList();
+  resetTMForm();
+  renderJobs();
+}
+
+function deleteType(key){
+  if(BUILTIN_TYPES[key]){alert('Built-in types cannot be deleted.');return;}
+  // Show inline confirmation instead of confirm() which gets blocked by modal z-index
+  const inUse=jobs.filter(j=>j.type===key).length;
+  const label=TYPE_META[key]?.label||key;
+  const msg=inUse
+    ? `"${label}" is used by ${inUse} job(s). Those jobs will show an unknown type. Delete anyway?`
+    : `Delete type "${label}"? This cannot be undone.`;
+
+  // Inject inline confirm into the tmList area
+  const list=document.getElementById('tmList');
+  const confirmHTML=`
+    <div id="tmDeleteConfirm" style="background:var(--red-bg);border:1px solid var(--red);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px">
+      <div style="font-size:13px;font-weight:500;color:var(--red);margin-bottom:6px">Confirm delete</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:10px">${msg}</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn" style="font-size:12px;padding:4px 12px;color:var(--red);border-color:var(--red)" onclick="confirmDeleteType('${key}')">Yes, delete</button>
+        <button class="btn" style="font-size:12px;padding:4px 12px" onclick="cancelDeleteType()">Cancel</button>
+      </div>
+    </div>`;
+  // Prepend confirm box above the list
+  list.insertAdjacentHTML('afterbegin', confirmHTML);
+  list.scrollTop=0;
+}
+function confirmDeleteType(key){
+  const custom=getCustomTypes();
+  delete custom[key];
+  saveCustomTypes(custom);
+  TYPE_META=buildTypeMeta();
+  renderTypesUI();
+  renderTMList();
+  renderJobs();
+}
+function cancelDeleteType(){
+  const el=document.getElementById('tmDeleteConfirm');
+  if(el) el.remove();
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+if(getSession()){ showApp(); } else { showAuth(); }
+</script>
+</body>
+</html>
