@@ -83,7 +83,31 @@ body{background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
 .color-grid{display:grid;grid-template-columns:repeat(9,1fr);gap:5px;margin-top:6px}
 .color-opt{width:24px;height:24px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .1s}
 .color-opt:hover{transform:scale(1.15)}
-.color-opt.selected{border-color:var(--text)}/* Layout */
+.color-opt.selected{border-color:var(--text)}/* Global AI Assistant */
+.gai-btn{display:flex;align-items:center;gap:6px;padding:6px 12px;background:var(--purple-bg);border:1px solid var(--purple);border-radius:var(--radius);color:var(--purple);font-size:13px;font-family:inherit;cursor:pointer;transition:all .15s}
+.gai-btn:hover{background:#3d2a7a}
+.gai-panel{position:fixed;bottom:0;left:240px;right:0;background:var(--bg2);border-top:1px solid var(--purple);z-index:150;transform:translateY(100%);transition:transform .25s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column}
+.gai-panel.open{transform:translateY(0)}
+.gai-header{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+.gai-title{font-size:13px;font-weight:500;color:var(--purple);display:flex;align-items:center;gap:6px}
+.gai-close{background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:2px 6px;line-height:1;margin-left:auto}
+.gai-close:hover{color:var(--text)}
+.gai-messages{overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:8px;max-height:260px;min-height:80px}
+.gai-msg{padding:8px 12px;border-radius:var(--radius);font-size:12.5px;line-height:1.6;white-space:pre-wrap}
+.gai-msg.user{background:var(--purple-bg);color:var(--text);align-self:flex-end;max-width:75%}
+.gai-msg.assistant{background:var(--bg3);color:var(--text);max-width:90%}
+.gai-msg.loading{color:var(--text2);font-style:italic}
+.gai-footer{padding:10px 16px;border-top:1px solid var(--border);flex-shrink:0}
+.gai-quick{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.gai-quick button{padding:3px 10px;background:var(--bg4);border:1px solid var(--border);border-radius:12px;color:var(--text2);font-size:11px;cursor:pointer;font-family:inherit}
+.gai-quick button:hover{border-color:var(--purple);color:var(--purple)}
+.gai-input-row{display:flex;gap:8px}
+.gai-input{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px;color:var(--text);font-size:13px;font-family:inherit;outline:none}
+.gai-input:focus{border-color:var(--purple)}
+.gai-send{padding:8px 14px;background:var(--purple-bg);border:1px solid var(--purple);border-radius:var(--radius);color:var(--purple);font-size:13px;cursor:pointer;font-family:inherit}
+.gai-send:hover{background:#3d2a7a}
+
+/* Layout */
 .shell{display:grid;grid-template-columns:240px 1fr;grid-template-rows:52px 1fr;height:100vh;overflow:hidden}
 .topbar{grid-column:1/-1;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;padding:0 16px;z-index:10}
 .sidebar{background:var(--bg2);border-right:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column}
@@ -413,6 +437,7 @@ textarea.form-input{min-height:90px;resize:vertical;font-family:'IBM Plex Mono',
       <input type="text" id="globalSearch" placeholder="Search jobs, scripts, procedures…" oninput="renderJobs()">
     </div>
     <div class="topbar-actions">
+      <button class="gai-btn" onclick="toggleGAI()">✦ Ask AI</button>
       <button class="btn btn-primary" onclick="openModal()">+ New Job</button>
       <div class="user-menu">
         <div class="user-avatar" id="userAvatar" onclick="toggleUD()">?</div>
@@ -512,6 +537,29 @@ textarea.form-input{min-height:90px;resize:vertical;font-family:'IBM Plex Mono',
     </div>
   </main>
 </div><!-- /.shell -->
+
+<!-- Global AI Assistant Panel -->
+<div class="gai-panel" id="gaiPanel">
+  <div class="gai-header">
+    <div class="gai-title">✦ Registry AI Assistant</div>
+    <div style="font-size:11px;color:var(--text3)" id="gaiContext">—</div>
+    <button class="gai-close" onclick="toggleGAI()">✕</button>
+  </div>
+  <div class="gai-messages" id="gaiMessages"></div>
+  <div class="gai-footer">
+    <div class="gai-quick">
+      <button onclick="gaiAsk('Add a new job')">➕ Add new job</button>
+      <button onclick="gaiAsk('Which jobs run daily?')">Daily jobs</button>
+      <button onclick="gaiAsk('List all PROD jobs')">PROD jobs</button>
+      <button onclick="gaiAsk('Which jobs are disabled?')">Disabled jobs</button>
+      <button onclick="gaiAsk('Who owns the most jobs?')">Job owners</button>
+    </div>
+    <div class="gai-input-row">
+      <input class="gai-input" id="gaiInput" placeholder="Ask anything about the registry…" onkeydown="if(event.key==='Enter')sendGAI()">
+      <button class="gai-send" onclick="sendGAI()">Ask ✦</button>
+    </div>
+  </div>
+</div>
 
 <!-- Overlay for detail panel -->
 <div class="overlay-bg" id="overlayBg" onclick="closeDetail()"></div>
@@ -2446,6 +2494,410 @@ function cancelDeleteType(){
   const el=document.getElementById('tmDeleteConfirm');
   if(el) el.remove();
 }
+
+// ─── GLOBAL AI ASSISTANT (rule-based, no API needed) ─────────────────────────
+let _gaiOpen = false;
+let _gaiMode = null;        // 'add' | 'delete_confirm' | null
+let _gaiDraft = {};         // in-progress new job fields
+let _gaiAddStep = null;     // current interview step
+let _gaiDeletePending = null;
+
+function toggleGAI(){
+  _gaiOpen = !_gaiOpen;
+  document.getElementById('gaiPanel').classList.toggle('open', _gaiOpen);
+  if(_gaiOpen){
+    gaiUpdateContext();
+    document.getElementById('gaiInput').focus();
+    const msgs = document.getElementById('gaiMessages');
+    if(!msgs.children.length) gaiAppend('assistant',
+      'Hi! I\'m your Registry Assistant. I can help you:\n\n' +
+      '  \u2795  Add a new job \u2014 guided step-by-step\n' +
+      '  \u270f\ufe0f  Update a job \u2014 "update CS_Monthly_Move owner to Cliff"\n' +
+      '  \uD83D\uDDD1\uFE0F  Delete a job \u2014 "delete Deploy_ETL_Packages"\n' +
+      '  \u23F8  Enable/disable \u2014 "disable MMO_Monthly_Move"\n' +
+      '  \uD83D\uDD0D  Answer questions \u2014 "which jobs run daily?"\n\n' +
+      'What would you like to do?'
+    );
+  }
+}
+
+function gaiUpdateContext(){
+  document.getElementById('gaiContext').textContent =
+    jobs.length + ' jobs \u00b7 ' + jobs.filter(j=>j.status==='active').length + ' active';
+}
+
+function gaiAsk(q){
+  if(!_gaiOpen) toggleGAI();
+  document.getElementById('gaiInput').value = q;
+  sendGAI();
+}
+
+function gaiAppend(role, text){
+  const msgs = document.getElementById('gaiMessages');
+  const div = document.createElement('div');
+  div.className = 'gai-msg ' + role;
+  div.textContent = text;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+
+function gaiLink(div, job){
+  const a = document.createElement('span');
+  a.style.cssText = 'color:var(--purple);cursor:pointer;text-decoration:underline;display:block;margin-top:5px;font-size:11px';
+  a.textContent = '\u2192 Open ' + job.name;
+  a.onclick = function(){ openDetail(job.id); };
+  div.appendChild(a);
+}
+
+function gaiFindJob(q){
+  const s = q.toLowerCase().trim();
+  let j = jobs.find(x=>x.name.toLowerCase()===s);
+  if(j) return j;
+  j = jobs.find(x=>x.name.toLowerCase().includes(s));
+  if(j) return j;
+  const words = s.split(/\s+/).filter(w=>w.length>2);
+  return jobs.find(x=> words.some(w=>x.name.toLowerCase().includes(w))) || null;
+}
+
+const FIELD_ALIASES = {
+  owner:['owner','owned by','assigned to'],
+  schedule:['schedule','scheduled','runs','run time','frequency'],
+  env:['environment','env'],
+  status:['status'],
+  server:['server','path','location'],
+  customer:['customer','requestor','client'],
+  customerContact:['contact','customer contact'],
+  desc:['description','desc','summary'],
+  purpose:['purpose','business use','reason'],
+  notes:['notes','documentation','docs'],
+  type:['type'],
+  name:['name','rename'],
+};
+
+function gaiParseUpdate(q){
+  let field=null, value=null;
+  for(const [f, aliases] of Object.entries(FIELD_ALIASES)){
+    for(const a of aliases){
+      const patterns = [
+        new RegExp(a+'\\s+to\\s+(.+)$','i'),
+        new RegExp(a+':\\s*(.+)$','i'),
+        new RegExp('set\\s+'+a+'\\s+(?:to\\s+)?(.+)$','i'),
+        new RegExp('change\\s+'+a+'\\s+to\\s+(.+)$','i'),
+        new RegExp('update\\s+'+a+'\\s+to\\s+(.+)$','i'),
+      ];
+      for(const rx of patterns){
+        const m = q.match(rx);
+        if(m){ field=f; value=m[1].trim(); break; }
+      }
+      if(field) break;
+    }
+    if(field) break;
+  }
+  if(field==='env'&&value){
+    if(/prod/i.test(value)) value='PROD';
+    else if(/uat/i.test(value)) value='UAT';
+    else if(/dev/i.test(value)) value='DEV';
+  }
+  if(field==='status'&&value){
+    value=/enable|active/i.test(value)?'active':'disabled';
+  }
+  if(field==='type'&&value){
+    const tv=value.toUpperCase().replace(/\s+/g,'');
+    const match=Object.keys(TYPE_META).find(k=>k===tv||TYPE_META[k].label.toUpperCase().replace(/\s+/g,'')===tv);
+    if(match) value=match;
+  }
+  return {field, value};
+}
+
+const ADD_STEPS = [
+  { key:'name', ask:'What is the name of the job?',
+    validate:function(v){ return v.trim().length>0?null:'Name cannot be empty.'; },
+    process:function(v){ return v.trim(); }},
+  { key:'type', ask:function(){
+      const types=Object.entries(TYPE_META).map(function(e){ return '  \u2022 '+e[1].label+' ('+e[0]+')'; }).join('\n');
+      return 'What type of job is it?\n'+types+'\n\nType the key or label (e.g. SQL, BAT, ALTERYX).';
+    },
+    validate:function(v){
+      const k=v.trim().toUpperCase();
+      if(TYPE_META[k]) return null;
+      const match=Object.entries(TYPE_META).find(function(e){ return e[1].label.toLowerCase()===v.trim().toLowerCase(); });
+      if(match) return null;
+      return 'I don\'t recognise "'+v+'". Please use one of the keys shown above.';
+    },
+    process:function(v){
+      const k=v.trim().toUpperCase();
+      if(TYPE_META[k]) return k;
+      const match=Object.entries(TYPE_META).find(function(e){ return e[1].label.toLowerCase()===v.trim().toLowerCase(); });
+      return match?match[0]:v.trim().toUpperCase();
+    }},
+  { key:'env', ask:'Which environment? PROD, UAT, or DEV?',
+    validate:function(v){ return /^(prod|uat|dev)$/i.test(v.trim())?null:'Please enter PROD, UAT, or DEV.'; },
+    process:function(v){ return v.trim().toUpperCase(); }},
+  { key:'owner', ask:'Who is the owner? (or press Enter to skip)',
+    validate:function(){ return null; }, process:function(v){ return v.trim(); }},
+  { key:'schedule', ask:'What is the schedule? e.g. "Daily at 6:00 AM", "Monthly \u2014 1st at 2:00 AM", "On Demand" (or Enter to skip)',
+    validate:function(){ return null; }, process:function(v){ return v.trim(); }},
+  { key:'server', ask:'Server or file path? (or Enter to skip)',
+    validate:function(){ return null; }, process:function(v){ return v.trim(); }},
+  { key:'customer', ask:'Customer or requestor? (or Enter to skip)',
+    validate:function(){ return null; }, process:function(v){ return v.trim(); }},
+  { key:'desc', ask:'Short one-line description of what this job does? (or Enter to skip)',
+    validate:function(){ return null; }, process:function(v){ return v.trim(); }},
+  { key:'_confirm', ask:function(draft){
+      const tm=TYPE_META[draft.type];
+      return 'Here\'s what I\'ll save:\n\n'+
+        '  Name:        '+draft.name+'\n'+
+        '  Type:        '+(tm?tm.label:draft.type)+'\n'+
+        '  Environment: '+draft.env+'\n'+
+        '  Owner:       '+(draft.owner||'\u2014')+'\n'+
+        '  Schedule:    '+(draft.schedule||'\u2014')+'\n'+
+        '  Server:      '+(draft.server||'\u2014')+'\n'+
+        '  Customer:    '+(draft.customer||'\u2014')+'\n'+
+        '  Description: '+(draft.desc||'\u2014')+'\n\n'+
+        'Type "save" to confirm, "cancel" to discard, or edit a field like "owner = Tim".';
+    },
+    validate:function(){ return null; }, process:function(v){ return v.trim(); }}
+];
+
+function gaiAddNext(){
+  const step=ADD_STEPS[_gaiAddStep];
+  const q=typeof step.ask==='function'?step.ask(_gaiDraft):step.ask;
+  gaiAppend('assistant',q);
+}
+
+function gaiHandleAdd(input){
+  const step=ADD_STEPS[_gaiAddStep];
+  if(/^cancel$/i.test(input.trim())){
+    _gaiMode=null;_gaiDraft={};_gaiAddStep=null;
+    gaiAppend('assistant','Cancelled \u2014 no job was added.');
+    return;
+  }
+  if(step.key==='_confirm'){
+    if(/^save$/i.test(input.trim())){
+      const newJob={
+        id:Date.now(),name:_gaiDraft.name||'Untitled',type:_gaiDraft.type||'SQL',
+        env:_gaiDraft.env||'DEV',owner:_gaiDraft.owner||'',schedule:_gaiDraft.schedule||'',
+        server:_gaiDraft.server||'',customer:_gaiDraft.customer||'',customerContact:'',
+        desc:_gaiDraft.desc||'',purpose:'',notes:'',code:'',workflowPath:'',
+        inputSources:'',outputTargets:'',alteryxVersion:'',tags:[],status:'active',
+      };
+      jobs.unshift(newJob);save();renderJobs();gaiUpdateContext();
+      _gaiMode=null;_gaiDraft={};_gaiAddStep=null;
+      const d=gaiAppend('assistant','\u2705 "'+newJob.name+'" has been added to the registry!');
+      gaiLink(d,newJob);
+    } else {
+      const upd=gaiParseUpdate(input);
+      if(upd.field&&upd.value!==null&&_gaiDraft.hasOwnProperty(upd.field)){
+        _gaiDraft[upd.field]=upd.value;
+        gaiAppend('assistant','Updated '+upd.field+' to "'+upd.value+'".');
+        gaiAddNext();
+      } else {
+        gaiAppend('assistant','Type "save" to add the job, "cancel" to discard, or edit a field like "owner = Tim".');
+      }
+    }
+    return;
+  }
+  const err=step.validate(input);
+  if(err){gaiAppend('assistant','\u26a0\ufe0f '+err);gaiAddNext();return;}
+  _gaiDraft[step.key]=step.process(input);
+  _gaiAddStep++;
+  gaiAddNext();
+}
+
+function gaiRoute(input){
+  const q=input.trim();
+  const ql=q.toLowerCase();
+
+  if(_gaiMode==='add'){gaiHandleAdd(q);return;}
+
+  if(_gaiMode==='delete_confirm'){
+    if(/^yes$|^confirm$|^delete$/i.test(q.trim())){
+      const j=jobs.find(x=>x.id===_gaiDeletePending);
+      const name=j?j.name:'job';
+      jobs=jobs.filter(x=>x.id!==_gaiDeletePending);
+      save();if(activeJobId===_gaiDeletePending)closeDetail();
+      renderJobs();gaiUpdateContext();
+      _gaiMode=null;_gaiDeletePending=null;
+      gaiAppend('assistant','\uD83D\uDDD1\uFE0F "'+name+'" has been deleted.');
+    } else {
+      _gaiMode=null;_gaiDeletePending=null;
+      gaiAppend('assistant','Deletion cancelled.');
+    }
+    return;
+  }
+
+  if(/^(add|create|new)\b/i.test(ql)){
+    _gaiMode='add';_gaiDraft={};_gaiAddStep=0;
+    gaiAppend('assistant','Let\'s add a new job. Type "cancel" at any time to stop.\n');
+    gaiAddNext();return;
+  }
+
+  if(/^(delete|remove)\b/i.test(ql)){
+    const rest=q.replace(/^(delete|remove)\s*/i,'').trim();
+    const j=gaiFindJob(rest);
+    if(!j){gaiAppend('assistant','I couldn\'t find a job matching "'+rest+'". Check the name and try again.');return;}
+    _gaiMode='delete_confirm';_gaiDeletePending=j.id;
+    gaiAppend('assistant','\u26a0\ufe0f Are you sure you want to delete "'+j.name+'"? This cannot be undone.\nType "yes" to confirm or anything else to cancel.');
+    return;
+  }
+
+  if(/\b(enable|disable|activate|deactivate)\b/i.test(ql)){
+    const action=/\b(enable|activate)\b/i.test(ql)?'active':'disabled';
+    const cleaned=q.replace(/\b(enable|disable|activate|deactivate)\b/gi,'').trim();
+    const j=gaiFindJob(cleaned);
+    if(!j){gaiAppend('assistant','I couldn\'t find a job matching "'+cleaned+'".');return;}
+    j.status=action;save();renderJobs();
+    if(activeJobId===j.id)renderDetailTab();
+    const d=gaiAppend('assistant',(action==='active'?'\u2705 Enabled':'\u23F8 Disabled')+' "'+j.name+'".');
+    gaiLink(d,j);return;
+  }
+
+  if(/^(update|change|set|edit|modify)\b/i.test(ql)){
+    const rest=q.replace(/^(update|change|set|edit|modify)\s*/i,'').trim();
+    const upd=gaiParseUpdate(rest);
+    let jobSearch=rest;
+    if(upd.field){
+      const aliases=FIELD_ALIASES[upd.field]||[upd.field];
+      jobSearch=rest.replace(new RegExp('('+aliases.join('|')+').+$','i'),'').trim();
+    }
+    const j=gaiFindJob(jobSearch)||(upd.field?gaiFindJob(rest.replace(/\s+(to|=|:)\s+.+$/,'').trim()):null);
+    if(!j){gaiAppend('assistant','I couldn\'t find that job. Try: "update <job name> <field> to <value>"');return;}
+    if(!upd.field||upd.value===null||upd.value===''){
+      gaiAppend('assistant','Found "'+j.name+'" but I\'m not sure what to change. Try:\n"update '+j.name+' owner to Cliff"\n"update '+j.name+' schedule to Monthly \u2014 1st at 2 AM"');return;
+    }
+    j[upd.field]=upd.value;save();renderJobs();
+    if(activeJobId===j.id)renderDetailTab();
+    const d=gaiAppend('assistant','\u2705 Updated '+upd.field+' on "'+j.name+'" \u2192 "'+upd.value+'".');
+    gaiLink(d,j);return;
+  }
+
+  const schedMatch=ql.match(/\b(daily|weekly|monthly|quarterly|biweekly|on demand)\b/);
+  if(schedMatch&&/\bjob|run|schedule\b/.test(ql)){
+    const freq=schedMatch[1];
+    const found=jobs.filter(j=>(j.schedule||'').toLowerCase().includes(freq));
+    if(!found.length){gaiAppend('assistant','No jobs found with a '+freq+' schedule.');return;}
+    gaiAppend('assistant',found.length+' job(s) with a '+freq+' schedule:\n\n'+found.map(j=>'  \u2022 '+j.name+' \u2014 '+(j.schedule||'\u2014')).join('\n'));return;
+  }
+
+  const envMatch=ql.match(/\b(prod(?:uction)?|uat|dev(?:elopment)?)\b/);
+  if(envMatch&&/\bjob|list|show\b/.test(ql)){
+    const env=/prod/i.test(envMatch[1])?'PROD':/uat/i.test(envMatch[1])?'UAT':'DEV';
+    const found=jobs.filter(j=>j.env===env);
+    gaiAppend('assistant',found.length+' '+env+' job(s):\n\n'+found.map(j=>'  \u2022 '+j.name+' ['+( TYPE_META[j.type]?TYPE_META[j.type].label:j.type)+'] \u2014 '+j.status).join('\n'));return;
+  }
+
+  if(/disabled|inactive/.test(ql)){
+    const found=jobs.filter(j=>j.status==='disabled');
+    if(!found.length){gaiAppend('assistant','All jobs are currently active \u2014 none are disabled.');return;}
+    gaiAppend('assistant',found.length+' disabled job(s):\n\n'+found.map(j=>'  \u2022 '+j.name+' ['+j.env+']').join('\n'));return;
+  }
+  if(/\bactive\b/.test(ql)&&/\bjob\b/.test(ql)){
+    const found=jobs.filter(j=>j.status==='active');
+    gaiAppend('assistant',found.length+' active job(s):\n\n'+found.map(j=>'  \u2022 '+j.name+' ['+j.env+']').join('\n'));return;
+  }
+
+  if(/owner|own/.test(ql)){
+    const tally={};
+    jobs.forEach(j=>{const o=j.owner||'Unknown';tally[o]=(tally[o]||0)+1;});
+    const sorted=Object.entries(tally).sort((a,b)=>b[1]-a[1]);
+    gaiAppend('assistant','Job ownership:\n\n'+sorted.map(function(e){return '  \u2022 '+e[0]+': '+e[1]+' job'+(e[1]>1?'s':'');}).join('\n'));return;
+  }
+
+  for(const [key,meta] of Object.entries(TYPE_META)){
+    if(ql.includes(meta.label.toLowerCase())||ql.includes(key.toLowerCase())){
+      if(/\bjob|list|show|have|workflow|script\b/.test(ql)){
+        const found=jobs.filter(j=>j.type===key);
+        if(!found.length){gaiAppend('assistant','No '+meta.label+' jobs in the registry.');return;}
+        gaiAppend('assistant',found.length+' '+meta.label+' job(s):\n\n'+found.map(j=>'  \u2022 '+j.name+' ['+j.env+'] \u2014 '+j.status).join('\n'));return;
+      }
+    }
+  }
+
+  if(/tell me about|info|details|what is|what does|describe/i.test(ql)){
+    const cleaned=q.replace(/tell me about|info on|details on|what is|what does|describe/gi,'').trim();
+    const j=gaiFindJob(cleaned);
+    if(j){
+      const tm=TYPE_META[j.type];
+      const d=gaiAppend('assistant',
+        '\uD83D\uDCCB '+j.name+'\n\n'+
+        '  Type:     '+(tm?tm.label:j.type)+'\n'+
+        '  Env:      '+j.env+'  |  Status: '+j.status+'\n'+
+        '  Owner:    '+(j.owner||'\u2014')+'\n'+
+        '  Schedule: '+(j.schedule||'\u2014')+'\n'+
+        '  Server:   '+(j.server||'\u2014')+'\n'+
+        '  Customer: '+(j.customer||'\u2014')+'\n'+
+        '  Desc:     '+(j.desc||'\u2014')
+      );
+      gaiLink(d,j);return;
+    }
+  }
+
+  if(/summary|overview|stats|statistics|count/i.test(ql)){
+    const byType=Object.entries(TYPE_META)
+      .map(function(e){const c=jobs.filter(j=>j.type===e[0]).length;return c?(e[1].label+': '+c):null;})
+      .filter(Boolean).join(', ');
+    gaiAppend('assistant',
+      '\uD83D\uDCCA Registry Summary\n\n'+
+      '  Total:    '+jobs.length+'\n'+
+      '  Active:   '+jobs.filter(j=>j.status==='active').length+'\n'+
+      '  Disabled: '+jobs.filter(j=>j.status==='disabled').length+'\n\n'+
+      '  PROD: '+jobs.filter(j=>j.env==='PROD').length+'  |  UAT: '+jobs.filter(j=>j.env==='UAT').length+'  |  DEV: '+jobs.filter(j=>j.env==='DEV').length+'\n\n'+
+      '  By type: '+byType
+    );return;
+  }
+
+  if(/^help$/i.test(ql)){
+    gaiAppend('assistant',
+      'Here\'s what I can do:\n\n'+
+      '  \u2795 Add a new job\n'+
+      '  \u270f\ufe0f  update <job> <field> to <value>\n'+
+      '      e.g. "update CS_Monthly_Move owner to Cliff"\n'+
+      '  \uD83D\uDDD1\uFE0F  delete <job name>\n'+
+      '  \u23F8  disable <job> / enable <job>\n\n'+
+      '  \uD83D\uDD0D Questions you can ask:\n'+
+      '      "which jobs run daily?"\n'+
+      '      "list all PROD jobs"\n'+
+      '      "which jobs are disabled?"\n'+
+      '      "tell me about MMO_Monthly_Move"\n'+
+      '      "who owns the most jobs?"\n'+
+      '      "show all Alteryx jobs"\n'+
+      '      "summary"'
+    );return;
+  }
+
+  const j=gaiFindJob(q);
+  if(j){
+    const tm=TYPE_META[j.type];
+    const d=gaiAppend('assistant',
+      'Found: '+j.name+'\n'+
+      '  Type: '+(tm?tm.label:j.type)+'  |  '+j.env+'  |  '+j.status+'\n'+
+      '  Owner: '+(j.owner||'\u2014')+'  |  Schedule: '+(j.schedule||'\u2014')
+    );
+    gaiLink(d,j);return;
+  }
+
+  gaiAppend('assistant',
+    'I\'m not sure what you mean. Try:\n'+
+    '  \u2022 "Add a new job"\n'+
+    '  \u2022 "update <job name> <field> to <value>"\n'+
+    '  \u2022 "delete <job name>"\n'+
+    '  \u2022 "enable / disable <job name>"\n'+
+    '  \u2022 "which jobs run daily?"\n'+
+    '  \u2022 "summary" or "help"'
+  );
+}
+
+function sendGAI(){
+  const input=document.getElementById('gaiInput');
+  const q=input.value.trim();
+  if(!q) return;
+  if(!_gaiOpen) toggleGAI();
+  gaiAppend('user',q);
+  input.value='';
+  setTimeout(function(){ gaiRoute(q); },60);
+}
+
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 if(getSession()){ showApp(); } else { showAuth(); }
