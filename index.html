@@ -107,6 +107,9 @@ body{background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
 .gai-send{padding:8px 14px;background:var(--purple-bg);border:1px solid var(--purple);border-radius:var(--radius);color:var(--purple);font-size:13px;cursor:pointer;font-family:inherit}
 .gai-send:hover{background:#3d2a7a}
 
+/* Program badges */
+.prog-badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap}
+
 /* Layout */
 .shell{display:grid;grid-template-columns:240px 1fr;grid-template-rows:52px 1fr;height:100vh;overflow:hidden}
 .topbar{grid-column:1/-1;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;padding:0 16px;z-index:10}
@@ -425,8 +428,42 @@ textarea.form-input{min-height:90px;resize:vertical;font-family:'IBM Plex Mono',
   </div>
 </div>
 
+<!-- Programs Manager Modal -->
+<div class="modal-overlay" id="programsMgrOverlay" style="display:none;align-items:center;justify-content:center">
+  <div class="modal" style="width:520px;max-height:85vh">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <h2 style="margin:0">Manage Programs</h2>
+      <button class="detail-close" onclick="closeProgramsMgr()">✕</button>
+    </div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.6">Programs group your jobs, interfaces, and docs by initiative or payor. They show as badges in the table and filter in the sidebar.</div>
+    <div id="progList" style="margin-bottom:16px;max-height:200px;overflow-y:auto"></div>
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px">
+      <div style="font-size:12px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px" id="progFormTitle">Add new program</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div class="form-field" style="margin:0">
+          <label class="form-label">Full name</label>
+          <input class="form-input" id="prog-label" placeholder="e.g. Value Based Care">
+        </div>
+        <div class="form-field" style="margin:0">
+          <label class="form-label">Abbreviation / key</label>
+          <input class="form-input" id="prog-abbr" placeholder="e.g. VBC" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')">
+        </div>
+      </div>
+      <div class="form-field" style="margin-bottom:10px">
+        <label class="form-label">Color</label>
+        <div class="color-grid" id="progColorGrid"></div>
+        <input type="hidden" id="prog-color" value="#58a6ff">
+      </div>
+      <div id="prog-err" style="font-size:12px;color:var(--red);margin-bottom:8px;display:none"></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" onclick="saveProgram()">Save program</button>
+        <button class="btn" onclick="resetProgForm()">Clear</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="shell">
-  <!-- Topbar -->
   <header class="topbar">
     <div class="logo">
       <div class="logo-icon">⚙</div>
@@ -438,7 +475,7 @@ textarea.form-input{min-height:90px;resize:vertical;font-family:'IBM Plex Mono',
     </div>
     <div class="topbar-actions">
       <button class="gai-btn" onclick="toggleGAI()">✦ Ask AI</button>
-      <button class="btn btn-primary" onclick="openModal()">+ New Job</button>
+      <button class="btn btn-primary" onclick="openModal()">+ New</button>
       <div class="user-menu">
         <div class="user-avatar" id="userAvatar" onclick="toggleUD()">?</div>
         <div class="user-dropdown" id="userDD">
@@ -485,8 +522,32 @@ textarea.form-input{min-height:90px;resize:vertical;font-family:'IBM Plex Mono',
     </div>
     <div class="sidebar-divider"></div>
     <div class="sidebar-section">
+      <div class="sidebar-label">Program</div>
+      <div class="nav-item" onclick="setProgramFilter(null,this)" id="prog-filter-all">
+        <span>◈</span> All Programs <span class="count" id="cnt-prog-all">0</span>
+      </div>
+      <div id="sidebarPrograms"></div>
+    </div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Sections</div>
+      <div class="nav-item" onclick="setSectionFilter('job',this)" id="sec-job">
+        <span>⚙</span> Jobs &amp; Code <span class="count" id="cnt-sec-job">0</span>
+      </div>
+      <div class="nav-item" onclick="setSectionFilter('interface',this)" id="sec-interface">
+        <span>⇄</span> Interfaces <span class="count" id="cnt-sec-interface">0</span>
+      </div>
+      <div class="nav-item" onclick="setSectionFilter('doc',this)" id="sec-doc">
+        <span>📄</span> Documentation <span class="count" id="cnt-sec-doc">0</span>
+      </div>
+    </div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section">
       <div class="nav-item" onclick="openTypesMgr()" style="color:var(--text2)">
         <span style="font-size:13px">⊞</span> Manage Types
+      </div>
+      <div class="nav-item" onclick="openProgramsMgr()" style="color:var(--text2)">
+        <span style="font-size:13px">◈</span> Manage Programs
       </div>
     </div>
   </nav>
@@ -520,10 +581,10 @@ textarea.form-input{min-height:90px;resize:vertical;font-family:'IBM Plex Mono',
         <thead>
           <tr>
             <th>Name</th>
-            <th>Type</th>
+            <th>Program</th>
+            <th>Type / Kind</th>
             <th>Environment</th>
-            <th>Schedule</th>
-            <th>Owner</th>
+            <th>Schedule / Detail</th>
             <th>Status</th>
           </tr>
         </thead>
@@ -604,36 +665,21 @@ textarea.form-input{min-height:90px;resize:vertical;font-family:'IBM Plex Mono',
   </div>
 </div>
 
-<!-- New Job Modal -->
+<!-- New Record Modal -->
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal">
-    <h2>Add New Job</h2>
+    <h2 id="modalTitle">Add New Job</h2>
+
+    <!-- ── SHARED FIELDS (all sections) ── -->
     <div class="form-field">
-      <label class="form-label">Job Name *</label>
+      <label class="form-label" id="f-name-label">Name *</label>
       <input class="form-input" id="f-name" placeholder="e.g. CareSource_Member_Load_Daily">
     </div>
     <div class="form-field">
       <label class="form-label">Description</label>
-      <input class="form-input" id="f-desc" placeholder="One-line summary of what this job does">
-    </div>
-    <div class="form-field">
-      <label class="form-label">Purpose / Business Use</label>
-      <textarea class="form-input" id="f-purpose" style="font-family:'DM Sans',sans-serif;min-height:70px" placeholder="Why does this job exist? What business process does it support? Who uses the output?"></textarea>
+      <input class="form-input" id="f-desc" placeholder="One-line summary">
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <div class="form-field">
-        <label class="form-label">Job Type *</label>
-        <select class="form-input form-select" id="f-type" onchange="toggleModalFields()">
-          <option value="SQL">SQL Script</option>
-          <option value="BAT">.bat Script</option>
-          <option value="PS">PowerShell</option>
-          <option value="SSIS">SSIS Package</option>
-          <option value="PY">Python Script</option>
-          <option value="ALTERYX">Alteryx Workflow</option>
-          <option value="ALTXSCHED">Alteryx Schedule</option>
-          <option value="QLIK">Qlik App</option>
-        </select>
-      </div>
       <div class="form-field">
         <label class="form-label">Environment *</label>
         <select class="form-input form-select" id="f-env">
@@ -642,133 +688,224 @@ textarea.form-input{min-height:90px;resize:vertical;font-family:'IBM Plex Mono',
           <option value="DEV">Dev</option>
         </select>
       </div>
+      <div class="form-field">
+        <label class="form-label">Program / Initiative</label>
+        <select class="form-input form-select" id="f-program">
+          <option value="">— No program —</option>
+        </select>
+      </div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <div class="form-field" style="grid-column:1/-1">
-        <label class="form-label">Schedule</label>
-        <div class="sched-row" id="modal-sched-row">
-          <div class="sched-group">
-            <label>Frequency</label>
-            <select id="f-freq" onchange="onModalFreqChange()">
-              <option value="">— Select —</option>
-              <option value="On Demand">On Demand</option>
-              <option value="Daily">Daily</option>
-              <option value="Weekly">Weekly</option>
-              <option value="Biweekly">Biweekly</option>
-              <option value="Monthly">Monthly</option>
-              <option value="Quarterly">Quarterly</option>
-            </select>
-          </div>
-          <div class="sched-group" id="modal-day-group" style="display:none">
-            <label id="modal-day-label">Day</label>
-            <select id="f-day" onchange="updateModalSummary()">
-              <option value="Monday">Monday</option>
-              <option value="Tuesday">Tuesday</option>
-              <option value="Wednesday">Wednesday</option>
-              <option value="Thursday">Thursday</option>
-              <option value="Friday">Friday</option>
-              <option value="Saturday">Saturday</option>
-              <option value="Sunday">Sunday</option>
-            </select>
-          </div>
-          <div class="sched-group" id="modal-dom-group" style="display:none">
-            <label>Day of Month</label>
-            <select id="f-dom" onchange="updateModalSummary()">
-              <option value="1">1st</option>
-              <option value="2">2nd</option>
-              <option value="3">3rd</option>
-              <option value="4">4th</option>
-              <option value="5">5th</option>
-              <option value="6">6th</option>
-              <option value="7">7th</option>
-              <option value="8">8th</option>
-              <option value="9">9th</option>
-              <option value="10">10th</option>
-              <option value="11">11th</option>
-              <option value="12">12th</option>
-              <option value="13">13th</option>
-              <option value="14">14th</option>
-              <option value="15">15th</option>
-              <option value="16">16th</option>
-              <option value="17">17th</option>
-              <option value="18">18th</option>
-              <option value="19">19th</option>
-              <option value="20">20th</option>
-              <option value="21">21st</option>
-              <option value="22">22nd</option>
-              <option value="23">23rd</option>
-              <option value="24">24th</option>
-              <option value="25">25th</option>
-              <option value="26">26th</option>
-              <option value="27">27th</option>
-              <option value="28">28th</option>
-              <option value="Last">Last day</option>
-            </select>
-          </div>
-          <div class="sched-group" id="modal-time-group" style="display:none">
-            <label>Time</label>
-            <input type="time" id="f-time" value="02:00" onchange="updateModalSummary()">
-          </div>
-        </div>
-        <div id="modal-sched-summary" class="sched-summary" style="display:none"></div>
-      </div>
       <div class="form-field">
         <label class="form-label">Owner</label>
         <input class="form-input" id="f-owner" placeholder="Team member name">
       </div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
       <div class="form-field">
         <label class="form-label">Customer / Requestor</label>
-        <input class="form-input" id="f-customer" placeholder="e.g. CareSource, Analytics Team, Finance">
-      </div>
-      <div class="form-field">
-        <label class="form-label">Customer Contact</label>
-        <input class="form-input" id="f-customerContact" placeholder="Name or email of business contact">
-      </div>
-    </div>
-    <div class="form-field">
-      <label class="form-label">Server / Path</label>
-      <input class="form-input" id="f-server" placeholder="e.g. SQLS01 / \\server\scripts\job.ps1">
-    </div>
-
-    <!-- Inventory fields: Alteryx & Qlik only -->
-    <div id="inventoryFields" style="display:none">
-      <div class="form-field">
-        <label class="form-label" id="f-workflowpath-label">Workflow / App Path</label>
-        <input class="form-input" id="f-workflowPath" placeholder="e.g. \\server\workflows\MyFlow.yxmd  or  Qlik Hub > Stream > App Name">
-      </div>
-      <div class="form-field">
-        <label class="form-label">Input Sources</label>
-        <textarea class="form-input" id="f-inputSources" style="font-family:'DM Sans',sans-serif;min-height:60px" placeholder="List data sources: databases, files, APIs, ODBC connections…"></textarea>
-      </div>
-      <div class="form-field">
-        <label class="form-label">Output Targets</label>
-        <textarea class="form-input" id="f-outputTargets" style="font-family:'DM Sans',sans-serif;min-height:60px" placeholder="Where does output go? Tables, files, dashboards, downstream jobs…"></textarea>
-      </div>
-      <div class="form-field">
-        <label class="form-label" id="f-version-label">Version / Platform</label>
-        <input class="form-input" id="f-alteryxVersion" placeholder="e.g. Alteryx Designer 2023.2  or  Qlik Sense Enterprise Nov 2023">
+        <input class="form-input" id="f-customer" placeholder="e.g. CareSource, Analytics Team">
       </div>
     </div>
 
-    <!-- Code field: hidden for Alteryx/Qlik -->
-    <div id="codeField" class="form-field">
-      <label class="form-label">Code / Script</label>
-      <textarea class="form-input" id="f-code" placeholder="Paste your SQL, PowerShell, Python, BAT code here…"></textarea>
+    <!-- ── JOB / CODE FIELDS ── -->
+    <div id="modal-job-fields">
+      <div class="form-field">
+        <label class="form-label">Purpose / Business Use</label>
+        <textarea class="form-input" id="f-purpose" style="font-family:'DM Sans',sans-serif;min-height:60px" placeholder="Why does this job exist? What business process does it support?"></textarea>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-field">
+          <label class="form-label">Job Type *</label>
+          <select class="form-input form-select" id="f-type" onchange="toggleModalFields()"></select>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Schedule</label>
+          <div class="sched-row" id="modal-sched-row">
+            <div class="sched-group" style="flex:1">
+              <label>Frequency</label>
+              <select id="f-freq" onchange="onModalFreqChange()">
+                <option value="">— Select —</option>
+                <option value="On Demand">On Demand</option>
+                <option value="Daily">Daily</option>
+                <option value="Weekly">Weekly</option>
+                <option value="Biweekly">Biweekly</option>
+                <option value="Monthly">Monthly</option>
+                <option value="Quarterly">Quarterly</option>
+              </select>
+            </div>
+            <div class="sched-group" id="modal-day-group" style="display:none">
+              <label id="modal-day-label">Day</label>
+              <select id="f-day" onchange="updateModalSummary()">
+                <option value="Monday">Monday</option><option value="Tuesday">Tuesday</option>
+                <option value="Wednesday">Wednesday</option><option value="Thursday">Thursday</option>
+                <option value="Friday">Friday</option><option value="Saturday">Saturday</option>
+                <option value="Sunday">Sunday</option>
+              </select>
+            </div>
+            <div class="sched-group" id="modal-dom-group" style="display:none">
+              <label>Day of Month</label>
+              <select id="f-dom" onchange="updateModalSummary()">
+                <option value="1">1st</option><option value="2">2nd</option><option value="3">3rd</option>
+                <option value="4">4th</option><option value="5">5th</option><option value="6">6th</option>
+                <option value="7">7th</option><option value="8">8th</option><option value="9">9th</option>
+                <option value="10">10th</option><option value="11">11th</option><option value="12">12th</option>
+                <option value="13">13th</option><option value="14">14th</option><option value="15">15th</option>
+                <option value="16">16th</option><option value="17">17th</option><option value="18">18th</option>
+                <option value="19">19th</option><option value="20">20th</option><option value="21">21st</option>
+                <option value="22">22nd</option><option value="23">23rd</option><option value="24">24th</option>
+                <option value="25">25th</option><option value="26">26th</option><option value="27">27th</option>
+                <option value="28">28th</option><option value="Last">Last day</option>
+              </select>
+            </div>
+            <div class="sched-group" id="modal-time-group" style="display:none">
+              <label>Time</label>
+              <input type="time" id="f-time" value="02:00" onchange="updateModalSummary()">
+            </div>
+          </div>
+          <div id="modal-sched-summary" class="sched-summary" style="display:none"></div>
+        </div>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Server / Path</label>
+        <input class="form-input" id="f-server" placeholder="e.g. SQLS01 / \\server\scripts\job.ps1">
+      </div>
+      <!-- Inventory fields: Alteryx & Qlik only -->
+      <div id="inventoryFields" style="display:none">
+        <div class="form-field">
+          <label class="form-label" id="f-workflowpath-label">Workflow / App Path</label>
+          <input class="form-input" id="f-workflowPath" placeholder="e.g. \\server\workflows\MyFlow.yxmd">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Input Sources</label>
+          <textarea class="form-input" id="f-inputSources" style="font-family:'DM Sans',sans-serif;min-height:60px" placeholder="Databases, files, APIs, ODBC connections…"></textarea>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Output Targets</label>
+          <textarea class="form-input" id="f-outputTargets" style="font-family:'DM Sans',sans-serif;min-height:60px" placeholder="Where does output go?"></textarea>
+        </div>
+        <div class="form-field">
+          <label class="form-label" id="f-version-label">Version / Platform</label>
+          <input class="form-input" id="f-alteryxVersion" placeholder="e.g. Alteryx Designer 2023.2">
+        </div>
+      </div>
+      <!-- Code field -->
+      <div id="codeField" class="form-field">
+        <label class="form-label">Code / Script</label>
+        <textarea class="form-input" id="f-code" placeholder="Paste your SQL, PowerShell, Python, BAT code here…"></textarea>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Notes / Documentation</label>
+        <textarea class="form-input" id="f-notes" style="font-family:'DM Sans',sans-serif" placeholder="Dependencies, run instructions, change history, known issues…"></textarea>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Tags (comma separated)</label>
+        <input class="form-input" id="f-tags" placeholder="e.g. medicare, supplemental, caresource">
+      </div>
     </div>
 
-    <div class="form-field">
-      <label class="form-label">Documentation / Notes</label>
-      <textarea class="form-input" id="f-notes" style="font-family:'DM Sans',sans-serif" placeholder="Dependencies, run instructions, change history, known issues…"></textarea>
+    <!-- ── INTERFACE FIELDS ── -->
+    <div id="modal-interface-fields" style="display:none">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-field">
+          <label class="form-label">Direction *</label>
+          <select class="form-input form-select" id="f-ifaceDirection">
+            <option value="">— Select —</option>
+            <option value="Inbound">Inbound</option>
+            <option value="Outbound">Outbound</option>
+            <option value="Bidirectional">Bidirectional</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Format / Protocol *</label>
+          <select class="form-input form-select" id="f-ifaceFormat">
+            <option value="">— Select —</option>
+            <option value="HL7 v2">HL7 v2</option>
+            <option value="HL7 FHIR">HL7 FHIR</option>
+            <option value="Flat File">Flat File</option>
+            <option value="CSV">CSV</option>
+            <option value="Excel">Excel</option>
+            <option value="API/REST">API/REST</option>
+            <option value="SFTP">SFTP</option>
+            <option value="Database">Database</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-field">
+          <label class="form-label">Source System</label>
+          <input class="form-input" id="f-ifaceSource" placeholder="e.g. Epic, CareSource, MMO">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Target System</label>
+          <input class="form-input" id="f-ifaceTarget" placeholder="e.g. HealthOpsDB, SharePoint">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-field">
+          <label class="form-label">Frequency</label>
+          <select class="form-input form-select" id="f-ifaceFreq">
+            <option value="">— Select —</option>
+            <option value="Real-time">Real-time</option>
+            <option value="Daily">Daily</option>
+            <option value="Weekly">Weekly</option>
+            <option value="Monthly">Monthly</option>
+            <option value="On Demand">On Demand</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label class="form-label">File / Endpoint Path</label>
+          <input class="form-input" id="f-ifacePath" placeholder="e.g. \\server\drop\ or https://api.endpoint">
+        </div>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Notes</label>
+        <textarea class="form-input" id="f-ifaceNotes" style="font-family:'DM Sans',sans-serif;min-height:80px" placeholder="Error handling, contact info, known issues…"></textarea>
+      </div>
     </div>
-    <div class="form-field">
-      <label class="form-label">Tags (comma separated)</label>
-      <input class="form-input" id="f-tags" placeholder="e.g. medicare, supplemental, caresource">
+
+    <!-- ── DOCUMENTATION FIELDS ── -->
+    <div id="modal-doc-fields" style="display:none">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-field">
+          <label class="form-label">Document Type *</label>
+          <select class="form-input form-select" id="f-docType">
+            <option value="">— Select —</option>
+            <option value="SOP">SOP</option>
+            <option value="Runbook">Runbook</option>
+            <option value="Process Guide">Process Guide</option>
+            <option value="How-To">How-To</option>
+            <option value="Reference">Reference</option>
+            <option value="Training">Training</option>
+            <option value="Policy">Policy</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Last Reviewed</label>
+          <input class="form-input" id="f-docReviewed" type="date">
+        </div>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Document Location / Link</label>
+        <input class="form-input" id="f-docLink" placeholder="e.g. SharePoint URL, Teams channel, file path">
+      </div>
+      <div class="form-field">
+        <label class="form-label">Related Jobs / Processes</label>
+        <input class="form-input" id="f-docRelated" placeholder="e.g. CS_Monthly_Move, MMO_Monthly_Move">
+      </div>
+      <div class="form-field">
+        <label class="form-label">Content / Summary</label>
+        <textarea class="form-input" id="f-docContent" style="font-family:'DM Sans',sans-serif;min-height:100px" placeholder="What does this document cover? Key steps, decisions, or processes described…"></textarea>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Author / Maintained By</label>
+        <input class="form-input" id="f-docAuthor" placeholder="Team member name">
+      </div>
     </div>
+
     <div class="modal-actions">
       <button class="btn" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="saveJob()">Save Job</button>
+      <button class="btn btn-primary" id="modalSaveBtn" onclick="saveJob()">Save Job</button>
     </div>
   </div>
 </div><!-- /modal -->
@@ -787,6 +924,7 @@ const BUILTIN_TYPES = {
   ALTXSCHED:{label:'Alteryx Schedule', color:'#0082b3', bg:'rgba(0,130,179,.15)',   lang:'alteryx',    noCode:true,  section:'job',   builtin:true},
   QLIK:     {label:'Qlik',             color:'#52cc74', bg:'rgba(82,204,116,.15)',  lang:'qlik',       noCode:true,  section:'code',  builtin:true},
   EPICINTERFACE:{label:'Epic Interface',color:'#e06c75', bg:'rgba(224,108,117,.15)',lang:'text',       noCode:true,  section:'job',   builtin:true},
+  DOC:          {label:'Document',      color:'#39d353', bg:'rgba(57,211,83,.15)',  lang:'text',       noCode:true,  section:'doc',   builtin:true},
 };
 
 function getCustomTypes(){ return JSON.parse(localStorage.getItem('isJobCustomTypes')||'{}'); }
@@ -826,6 +964,46 @@ const ENV_META = {
   UAT: {label:'UAT', color:'#d29922',bg:'rgba(210,153,34,.12)'},
   DEV: {label:'DEV', color:'#3fb950',bg:'rgba(63,185,80,.12)'},
 };
+
+// ─── PROGRAMS ─────────────────────────────────────────────────────────────────
+// Each: {label, abbr, color, bg}
+const DEFAULT_PROGRAMS = {
+  VBC:        {label:'Value Based Care',   abbr:'VBC',  color:'#58a6ff', bg:'rgba(88,166,255,.15)'},
+  MMO:        {label:'Medicare',           abbr:'MMO',  color:'#d29922', bg:'rgba(210,153,34,.15)'},
+  CS:         {label:'CareSource',         abbr:'CS',   color:'#3fb950', bg:'rgba(63,185,80,.15)'},
+  CICIP:      {label:'CICIP',              abbr:'CICIP',color:'#bc8cff', bg:'rgba(188,140,255,.15)'},
+  MOF:        {label:'Mid-Ohio Farmacy',   abbr:'MOF',  color:'#f0883e', bg:'rgba(240,136,62,.15)'},
+  ENTERPRISE: {label:'Enterprise / General',abbr:'ENT', color:'#8b949e', bg:'rgba(139,148,158,.15)'},
+};
+function getCustomPrograms(){ return JSON.parse(localStorage.getItem('isJobPrograms')||'{}'); }
+function saveCustomPrograms(p){ localStorage.setItem('isJobPrograms',JSON.stringify(p)); }
+function buildPrograms(){
+  const custom=getCustomPrograms();
+  return Object.assign({}, DEFAULT_PROGRAMS, custom);
+}
+let PROGRAMS = buildPrograms();
+
+function programBadge(key){
+  if(!key) return '';
+  const p=PROGRAMS[key];
+  if(!p) return `<span class="prog-badge" style="color:#8b949e;background:rgba(139,148,158,.15)">${key}</span>`;
+  return `<span class="prog-badge" style="color:${p.color};background:${p.bg}" title="${p.label}">${p.abbr}</span>`;
+}
+
+// ─── RECORD SECTIONS ──────────────────────────────────────────────────────────
+// 'job' = existing jobs/code section
+// 'interface' = interfaces section
+// 'doc' = documentation section
+const RECORD_SECTION_META = {
+  job:       {label:'Jobs & Code',    icon:'⚙',  color:'var(--blue)'},
+  interface: {label:'Interfaces',     icon:'⇄',  color:'var(--coral)'},
+  doc:       {label:'Documentation',  icon:'📄', color:'var(--teal)'},
+};
+
+// Interface direction/format options
+const IFACE_DIRECTIONS = ['Inbound','Outbound','Bidirectional'];
+const IFACE_FORMATS    = ['HL7 v2','HL7 FHIR','Flat File','CSV','Excel','API/REST','SFTP','Database','Other'];
+const DOC_TYPES        = ['SOP','Runbook','Process Guide','How-To','Reference','Training','Policy','Other'];
 
 let jobs = JSON.parse(localStorage.getItem('isJobs') || 'null') || [
   {id:1774907976168,name:'CS_Monthly_Move',desc:'Routes CareSource payer files to organized folders with archiving, logging, and email notification.',type:'BAT',env:'PROD',schedule:'Monthly — 11th at 2:00 AM',owner:'Cliff Skinner',server:'N:\\RegulatoryPrograms\\Analytics\\Value Base Payor Jobs',status:'disabled',tags:[],customer:'Kelly McCann',customerContact:'Kelly.Mccann@osumc.edu',
@@ -1138,7 +1316,7 @@ exit(1 if failures else 0)`,
 ];
 
 
-let currentFilter = {view:'all', type:null, env:null, chip:'all'};
+let currentFilter = {view:'all', type:null, env:null, chip:'all', program:null, section:null};
 let activeJobId = null;
 let activeTab   = 'code';
 
@@ -1148,17 +1326,23 @@ function save(){ localStorage.setItem('isJobs', JSON.stringify(jobs)); }
 function getFiltered(){
   const q = document.getElementById('globalSearch').value.toLowerCase();
   return jobs.filter(j => {
+    const sec = j.recordSection||'job';
+    if(currentFilter.section && sec !== currentFilter.section) return false;
     if(currentFilter.view==='active'   && j.status!=='active')   return false;
     if(currentFilter.view==='disabled' && j.status!=='disabled') return false;
     if(currentFilter.type && j.type!==currentFilter.type) return false;
     if(currentFilter.env  && j.env !==currentFilter.env)  return false;
+    if(currentFilter.program && j.program!==currentFilter.program) return false;
     if(currentFilter.chip && currentFilter.chip!=='all'){
-      // support section-level filters
-      if(currentFilter.chip==='code') { if(TYPE_META[j.type]?.section!=='code') return false; }
-      else if(currentFilter.chip==='job') { if(TYPE_META[j.type]?.section!=='job') return false; }
-      else { if(j.type!==currentFilter.chip) return false; }
+      const chip = currentFilter.chip;
+      if(chip.startsWith('idir_')){ if(j.ifaceDirection!==chip.slice(5)) return false; }
+      else if(chip.startsWith('ifmt_')){ if(j.ifaceFormat!==chip.slice(5)) return false; }
+      else if(chip.startsWith('doctype_')){ if(j.docType!==chip.slice(8)) return false; }
+      else if(chip==='code') { if(TYPE_META[j.type]?.section!=='code') return false; }
+      else if(chip==='job')  { if(TYPE_META[j.type]?.section!=='job') return false; }
+      else { if(j.type!==chip) return false; }
     }
-    if(q && ![j.name,j.desc,j.owner,j.server,j.customer,...(j.tags||[])].join(' ').toLowerCase().includes(q)) return false;
+    if(q && ![j.name,j.desc,j.owner,j.server,j.customer,...(j.tags||[]),j.program||''].join(' ').toLowerCase().includes(q)) return false;
     return true;
   });
 }
@@ -1185,15 +1369,31 @@ function renderJobs(){
     document.getElementById('emptyState').style.display='block';
   } else {
     document.getElementById('emptyState').style.display='none';
-    tbody.innerHTML = filtered.map(j=>`
-      <tr onclick="openDetail(${j.id})">
-        <td><div class="job-name">${j.name}${j.deps&&j.deps.length?`<span style="margin-left:6px;font-size:10px;background:var(--bg4);border:1px solid var(--border2);border-radius:10px;padding:1px 6px;color:var(--text3);vertical-align:middle">${j.deps.length} linked</span>`:''}</div><div class="job-desc">${j.desc}${j.customer?`<span style="margin-left:6px;color:var(--text3)">· ${esc(j.customer)}</span>`:''}</div></td>
-        <td>${typeBadge(j.type)}</td>
+    tbody.innerHTML = filtered.map(j=>{
+      const sec = j.recordSection||'job';
+      const secIcon = sec==='interface'?'⇄':sec==='doc'?'📄':'';
+      const detail = sec==='interface'?(j.ifaceDirection||'')
+                   : sec==='doc'?(j.docType||'')
+                   : (j.schedule||'—');
+      const hasDepsOn   = (j.depsOn||[]).length > 0;
+      const hasTriggers = (j.triggers||[]).length > 0;
+      const depTag = hasDepsOn
+        ? `<span onclick="event.stopPropagation();openDetailTab(${j.id},'deps')" title="Depends on ${j.depsOn.length} job(s)" style="margin-left:5px;font-size:10px;background:rgba(63,185,80,.12);border:1px solid rgba(63,185,80,.3);border-radius:10px;padding:1px 6px;color:#3fb950;cursor:pointer;vertical-align:middle;white-space:nowrap">⬆ ${j.depsOn.length}</span>` : '';
+      const trigTag = hasTriggers
+        ? `<span onclick="event.stopPropagation();openDetailTab(${j.id},'deps')" title="Triggers ${j.triggers.length} job(s)" style="margin-left:4px;font-size:10px;background:rgba(210,153,34,.12);border:1px solid rgba(210,153,34,.3);border-radius:10px;padding:1px 6px;color:#d29922;cursor:pointer;vertical-align:middle;white-space:nowrap">⬇ ${j.triggers.length}</span>` : '';
+      const progTag = j.program ? `<span style="margin-left:5px;vertical-align:middle">${programBadge(j.program)}</span>` : '';
+      return `<tr onclick="openDetail(${j.id})">
+        <td>
+          <div class="job-name">${secIcon?`<span style="margin-right:4px;font-size:11px">${secIcon}</span>`:''}${j.name}${depTag}${trigTag}</div>
+          <div class="job-desc">${j.desc||''}${j.customer?`<span style="margin-left:6px;color:var(--text3)">· ${esc(j.customer)}</span>`:''}</div>
+        </td>
+        <td>${j.program ? programBadge(j.program) : '<span style="font-size:11px;color:var(--text3)">—</span>'}</td>
+        <td>${sec==='interface'?`<span class="type-badge" style="color:var(--coral);background:rgba(240,136,62,.15)">Interface</span>`:sec==='doc'?`<span class="type-badge" style="color:var(--teal);background:rgba(57,211,83,.15)">Docs</span>`:typeBadge(j.type)}</td>
         <td>${envBadge(j.env)}</td>
-        <td style="font-size:12px;color:var(--text2)">${j.schedule||'—'}</td>
-        <td style="font-size:12px;color:var(--text2)">${j.owner||'—'}</td>
+        <td style="font-size:12px;color:var(--text2)">${detail}</td>
         <td>${statusBadge(j.status)}</td>
-      </tr>`).join('');
+      </tr>`;
+    }).join('');
   }
   updateCounts();
 }
@@ -1257,11 +1457,106 @@ function updateCounts(){
   ['PROD','UAT','DEV'].forEach(e=>{
     document.getElementById('cnt-'+e).textContent = jobs.filter(j=>j.env===e).length;
   });
+  // Section counts
+  ['job','interface','doc'].forEach(s=>{
+    const el=document.getElementById('cnt-sec-'+s);
+    if(el) el.textContent = jobs.filter(j=>(j.recordSection||'job')===s).length;
+  });
+  // Program counts
+  document.getElementById('cnt-prog-all').textContent = jobs.length;
+  Object.keys(PROGRAMS).forEach(k=>{
+    const el=document.getElementById('cnt-prog-'+k);
+    if(el) el.textContent = jobs.filter(j=>j.program===k).length;
+  });
   document.getElementById('s-total').textContent  = jobs.length;
   document.getElementById('s-active').textContent = jobs.filter(j=>j.status==='active').length;
   document.getElementById('s-sql').textContent    = jobs.filter(j=>j.type==='SQL').length;
   document.getElementById('s-ps').textContent     = jobs.filter(j=>j.type==='PS').length;
   document.getElementById('s-prod').textContent   = jobs.filter(j=>j.env==='PROD').length;
+  renderSectionStats();
+}
+
+function renderProgramsSidebar(){
+  document.getElementById('sidebarPrograms').innerHTML =
+    Object.entries(PROGRAMS).map(([k,p])=>`
+      <div class="nav-item" onclick="setProgramFilter('${k}',this)" id="prog-filter-${k}">
+        <span class="type-dot" style="background:${p.color}"></span> ${p.label}
+        <span class="count" id="cnt-prog-${k}">0</span>
+      </div>`).join('');
+}
+
+function setProgramFilter(key, el){
+  currentFilter.program = currentFilter.program===key ? null : key;
+  document.querySelectorAll('[id^="prog-filter-"]').forEach(n=>n.classList.remove('active'));
+  if(currentFilter.program && el) el.classList.add('active');
+  renderJobs();
+}
+
+function setSectionFilter(sec, el){
+  currentFilter.section = currentFilter.section===sec ? null : sec;
+  currentFilter.type = null;
+  currentFilter.chip = 'all';
+  document.querySelectorAll('[id^="sec-"]').forEach(n=>n.classList.remove('active'));
+  if(currentFilter.section && el) el.classList.add('active');
+  const activeSec = currentFilter.section;
+  // Update page title
+  if(!activeSec){
+    document.getElementById('pageTitle').textContent = 'All Records';
+  } else {
+    document.getElementById('pageTitle').textContent = RECORD_SECTION_META[activeSec].label;
+  }
+  // Update stats cards labels & values
+  renderSectionStats();
+  // Update filter chips for the active section
+  renderSectionChips();
+  renderJobs();
+}
+
+function renderSectionStats(){
+  const sec = currentFilter.section;
+  const filtered = sec ? jobs.filter(j=>(j.recordSection||'job')===sec) : jobs;
+  document.getElementById('s-total').textContent  = filtered.length;
+  document.getElementById('s-active').textContent = filtered.filter(j=>j.status==='active').length;
+  document.getElementById('s-prod').textContent   = filtered.filter(j=>j.env==='PROD').length;
+
+  if(!sec || sec==='job'){
+    document.getElementById('s-sql').textContent = filtered.filter(j=>j.type==='SQL').length;
+    document.getElementById('s-ps').textContent  = filtered.filter(j=>j.type==='PS').length;
+    document.querySelector('#s-sql').closest('.stat-card').querySelector('.stat-label').textContent='SQL Scripts';
+    document.querySelector('#s-ps').closest('.stat-card').querySelector('.stat-label').textContent='PowerShell';
+  } else if(sec==='interface'){
+    document.getElementById('s-sql').textContent = filtered.filter(j=>j.ifaceDirection==='Inbound').length;
+    document.getElementById('s-ps').textContent  = filtered.filter(j=>j.ifaceDirection==='Outbound').length;
+    document.querySelector('#s-sql').closest('.stat-card').querySelector('.stat-label').textContent='Inbound';
+    document.querySelector('#s-ps').closest('.stat-card').querySelector('.stat-label').textContent='Outbound';
+  } else if(sec==='doc'){
+    document.getElementById('s-sql').textContent = filtered.filter(j=>j.docType==='SOP').length;
+    document.getElementById('s-ps').textContent  = filtered.filter(j=>j.docType==='Runbook').length;
+    document.querySelector('#s-sql').closest('.stat-card').querySelector('.stat-label').textContent='SOPs';
+    document.querySelector('#s-ps').closest('.stat-card').querySelector('.stat-label').textContent='Runbooks';
+  }
+}
+
+function renderSectionChips(){
+  const bar = document.getElementById('filterBar');
+  const sec = currentFilter.section;
+  const sep = `<span style="width:1px;background:var(--border);margin:0 4px;align-self:stretch"></span>`;
+
+  if(sec==='interface'){
+    bar.innerHTML =
+      `<span class="filter-chip active" onclick="setChipFilter('all',this)">All</span>` + sep +
+      IFACE_DIRECTIONS.map(d=>`<span class="filter-chip" onclick="setChipFilter('idir_${d}',this)">${d}</span>`).join('') + sep +
+      IFACE_FORMATS.map(f=>`<span class="filter-chip" onclick="setChipFilter('ifmt_${f}',this)">${f}</span>`).join('');
+    return;
+  }
+  if(sec==='doc'){
+    bar.innerHTML =
+      `<span class="filter-chip active" onclick="setChipFilter('all',this)">All</span>` + sep +
+      DOC_TYPES.map(d=>`<span class="filter-chip" onclick="setChipFilter('doctype_${d}',this)">${d}</span>`).join('');
+    return;
+  }
+  // Default — jobs/code chips (rebuild from type meta)
+  renderTypesUI();
 }
 
 // ─── FILTERS ─────────────────────────────────────────────────────────────────
@@ -1299,30 +1594,80 @@ function setChipFilter(c, el){
 }
 
 // ─── DETAIL PANEL ────────────────────────────────────────────────────────────
+function openDetailTab(id, tab){
+  openDetail(id);
+  setTimeout(()=>{
+    const j = jobs.find(x=>x.id===id);
+    if(!j) return;
+    const sec = j.recordSection||'job';
+    // Map requested tab to actual tab name per section
+    let targetTab = tab;
+    if(tab==='deps') targetTab='deps';
+    const tabs = document.querySelectorAll('.detail-tabs .detail-tab');
+    tabs.forEach(t=>{
+      t.classList.remove('active');
+      // Match by onclick content
+      if(t.getAttribute('onclick')&&t.getAttribute('onclick').includes("'"+targetTab+"'")){
+        t.classList.add('active');
+        activeTab = targetTab;
+        renderDetailTab();
+      }
+    });
+  }, 60);
+}
+
 function openDetail(id){
   activeJobId=id;
   const j=jobs.find(x=>x.id===id);
   if(!j) return;
+  const sec = j.recordSection||'job';
   const isNoCode = TYPE_META[j.type]?.noCode;
-  activeTab = isNoCode ? 'docs' : 'code';
+
+  // Set default tab per section
+  if(sec==='doc')       activeTab='doc-detail';
+  else if(sec==='interface') activeTab='iface-detail';
+  else activeTab = isNoCode ? 'docs' : 'code';
+
   document.getElementById('dpTitle').textContent=j.name;
-  document.getElementById('dpMeta').innerHTML=
-    typeBadge(j.type)+' '+envBadge(j.env)+' '+statusBadge(j.status)+
-    `<span style="font-size:12px;color:var(--text3)">${j.server||''}</span>`;
-  // Update Code tab label
-  const codeTab = document.querySelector('.detail-tab');
-  codeTab.textContent = isNoCode ? 'Inventory' : 'Code';
-  // Set active tab highlight
-  document.querySelectorAll('.detail-tab').forEach((t,i)=>{
-    t.classList.toggle('active', (i===0 && activeTab==='code') || (i===1 && activeTab==='docs') || (i===2 && activeTab==='info'));
-  });
-  if(isNoCode){
-    document.querySelectorAll('.detail-tab')[0].classList.remove('active');
-    document.querySelectorAll('.detail-tab')[1].classList.add('active');
+
+  // Header meta — show program badge if set
+  const progHtml = j.program ? ' '+programBadge(j.program) : '';
+  if(sec==='doc'){
+    document.getElementById('dpMeta').innerHTML=
+      `<span class="type-badge" style="color:var(--teal);background:rgba(57,211,83,.15)">Document</span>`+
+      `<span class="status-badge" style="color:#8b949e;background:rgba(139,148,158,.1)">${j.docType||'—'}</span>`+
+      envBadge(j.env)+' '+statusBadge(j.status)+progHtml;
+  } else if(sec==='interface'){
+    document.getElementById('dpMeta').innerHTML=
+      `<span class="type-badge" style="color:var(--coral);background:rgba(240,136,62,.15)">Interface</span>`+
+      (j.ifaceDirection?`<span class="status-badge" style="color:var(--amber);background:rgba(210,153,34,.12)">${j.ifaceDirection}</span>`:'')+
+      envBadge(j.env)+' '+statusBadge(j.status)+progHtml;
   } else {
-    document.querySelectorAll('.detail-tab')[0].classList.add('active');
-    document.querySelectorAll('.detail-tab')[1].classList.remove('active');
+    document.getElementById('dpMeta').innerHTML=
+      typeBadge(j.type)+' '+envBadge(j.env)+' '+statusBadge(j.status)+progHtml+
+      `<span style="font-size:12px;color:var(--text3)">${j.server||''}</span>`;
   }
+
+  // Rebuild tabs based on section
+  const tabsEl = document.querySelector('.detail-tabs');
+  if(sec==='doc'){
+    tabsEl.innerHTML=`
+      <div class="detail-tab active" onclick="switchTab('doc-detail',this)">Details</div>
+      <div class="detail-tab" onclick="switchTab('deps',this)">Dependencies</div>
+      <div class="detail-tab" onclick="switchTab('info',this)">Info</div>`;
+  } else if(sec==='interface'){
+    tabsEl.innerHTML=`
+      <div class="detail-tab active" onclick="switchTab('iface-detail',this)">Details</div>
+      <div class="detail-tab" onclick="switchTab('deps',this)">Dependencies</div>
+      <div class="detail-tab" onclick="switchTab('info',this)">Info</div>`;
+  } else {
+    tabsEl.innerHTML=`
+      <div class="detail-tab ${!isNoCode?'active':''}" onclick="switchTab('code',this)">${isNoCode?'Inventory':'Code'}</div>
+      <div class="detail-tab ${isNoCode?'active':''}" onclick="switchTab('docs',this)">Documentation</div>
+      <div class="detail-tab" onclick="switchTab('deps',this)">Dependencies</div>
+      <div class="detail-tab" onclick="switchTab('info',this)">Info</div>`;
+  }
+
   renderDetailTab();
   document.getElementById('detailPanel').classList.add('open');
   document.getElementById('overlayBg').classList.add('open');
@@ -1347,7 +1692,131 @@ function renderDetailTab(){
   const j=jobs.find(x=>x.id===activeJobId);
   if(!j) return;
   const body=document.getElementById('detailBody');
+  const sec = j.recordSection||'job';
   const isNoCode = TYPE_META[j.type]?.noCode;
+
+  // ── DOCUMENTATION DETAIL ─────────────────────────────────────────────────
+  if(activeTab==='doc-detail'){
+    body.innerHTML=`
+      <div class="doc-field">
+        <div class="doc-label">Document Type</div>
+        <div class="doc-value" style="padding:4px 8px">
+          <select style="background:none;border:none;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%;cursor:pointer" onchange="saveField(${j.id},'docType',this.value);openDetail(${j.id})">
+            <option value="">— Select —</option>
+            ${DOC_TYPES.map(t=>`<option value="${t}" ${j.docType===t?'selected':''}>${t}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="doc-field">
+        <div class="doc-label">Description / Summary</div>
+        <div class="doc-value"><textarea style="min-height:80px" onblur="saveField(${j.id},'desc',this.value)">${j.desc||''}</textarea></div>
+      </div>
+      <div class="doc-field">
+        <div class="doc-label">Content / What it covers</div>
+        <div class="doc-value"><textarea style="min-height:120px" onblur="saveField(${j.id},'docContent',this.value)" placeholder="Key steps, decisions, or processes described in this document…">${j.docContent||''}</textarea></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="doc-field">
+          <div class="doc-label">Document Location / Link</div>
+          <div class="doc-value">
+            <input style="background:none;border:none;color:var(--blue);font-family:inherit;font-size:13px;outline:none;width:100%" value="${esc(j.docLink||'')}" placeholder="SharePoint URL, Teams, file path…" onblur="saveField(${j.id},'docLink',this.value)">
+            ${j.docLink?`<a href="${esc(j.docLink)}" target="_blank" style="font-size:11px;color:var(--blue);display:block;margin-top:4px">Open link ↗</a>`:''}
+          </div>
+        </div>
+        <div class="doc-field">
+          <div class="doc-label">Last Reviewed</div>
+          <div class="doc-value">
+            <input type="date" style="background:none;border:none;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%" value="${j.docReviewed||''}" onblur="saveField(${j.id},'docReviewed',this.value)">
+          </div>
+        </div>
+        <div class="doc-field">
+          <div class="doc-label">Author / Maintained By</div>
+          <div class="doc-value"><input style="background:none;border:none;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%" value="${esc(j.docAuthor||'')}" placeholder="Team member name" onblur="saveField(${j.id},'docAuthor',this.value)"></div>
+        </div>
+        <div class="doc-field">
+          <div class="doc-label">Related Jobs / Processes</div>
+          <div class="doc-value"><input style="background:none;border:none;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%" value="${esc(j.docRelated||'')}" placeholder="e.g. CS_Monthly_Move, MMO_Monthly_Move" onblur="saveField(${j.id},'docRelated',this.value)"></div>
+        </div>
+      </div>
+      <div class="doc-field" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+        <div class="doc-label">Status</div>
+        <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
+          <button class="btn ${j.status==='active'?'btn-primary':''}" onclick="toggleStatus(${j.id})">
+            ${j.status==='active'?'● Active (click to disable)':'○ Disabled (click to enable)'}
+          </button>
+          <button class="btn" style="color:var(--red);border-color:var(--red)" onclick="deleteJob(${j.id})">Delete</button>
+        </div>
+      </div>`;
+    return;
+  }
+
+  // ── INTERFACE DETAIL ─────────────────────────────────────────────────────
+  if(activeTab==='iface-detail'){
+    body.innerHTML=`
+      <div class="doc-field">
+        <div class="doc-label">Description</div>
+        <div class="doc-value"><textarea style="min-height:70px" onblur="saveField(${j.id},'desc',this.value)">${j.desc||''}</textarea></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="doc-field">
+          <div class="doc-label">Direction</div>
+          <div class="doc-value" style="padding:4px 8px">
+            <select style="background:none;border:none;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%;cursor:pointer" onchange="saveField(${j.id},'ifaceDirection',this.value)">
+              <option value="">— Select —</option>
+              ${IFACE_DIRECTIONS.map(d=>`<option value="${d}" ${j.ifaceDirection===d?'selected':''}>${d}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="doc-field">
+          <div class="doc-label">Format / Protocol</div>
+          <div class="doc-value" style="padding:4px 8px">
+            <select style="background:none;border:none;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%;cursor:pointer" onchange="saveField(${j.id},'ifaceFormat',this.value)">
+              <option value="">— Select —</option>
+              ${IFACE_FORMATS.map(f=>`<option value="${f}" ${j.ifaceFormat===f?'selected':''}>${f}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="doc-field">
+          <div class="doc-label">Source System</div>
+          <div class="doc-value"><input style="background:none;border:none;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%" value="${esc(j.ifaceSource||'')}" placeholder="e.g. Epic, CareSource" onblur="saveField(${j.id},'ifaceSource',this.value)"></div>
+        </div>
+        <div class="doc-field">
+          <div class="doc-label">Target System</div>
+          <div class="doc-value"><input style="background:none;border:none;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%" value="${esc(j.ifaceTarget||'')}" placeholder="e.g. HealthOpsDB, SharePoint" onblur="saveField(${j.id},'ifaceTarget',this.value)"></div>
+        </div>
+        <div class="doc-field">
+          <div class="doc-label">Frequency</div>
+          <div class="doc-value" style="padding:4px 8px">
+            <select style="background:none;border:none;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%;cursor:pointer" onchange="saveField(${j.id},'ifaceFreq',this.value)">
+              <option value="">— Select —</option>
+              <option value="Real-time" ${j.ifaceFreq==='Real-time'?'selected':''}>Real-time</option>
+              <option value="Daily" ${j.ifaceFreq==='Daily'?'selected':''}>Daily</option>
+              <option value="Weekly" ${j.ifaceFreq==='Weekly'?'selected':''}>Weekly</option>
+              <option value="Monthly" ${j.ifaceFreq==='Monthly'?'selected':''}>Monthly</option>
+              <option value="On Demand" ${j.ifaceFreq==='On Demand'?'selected':''}>On Demand</option>
+            </select>
+          </div>
+        </div>
+        <div class="doc-field">
+          <div class="doc-label">File / Endpoint Path</div>
+          <div class="doc-value"><input style="background:none;border:none;color:var(--text);font-family:inherit;font-size:13px;outline:none;width:100%" value="${esc(j.ifacePath||'')}" placeholder="\\\\server\\drop\\ or https://api…" onblur="saveField(${j.id},'ifacePath',this.value)"></div>
+        </div>
+      </div>
+      <div class="doc-field">
+        <div class="doc-label">Notes</div>
+        <div class="doc-value"><textarea style="min-height:100px" onblur="saveField(${j.id},'notes',this.value)" placeholder="Error handling, contact info, known issues…">${j.notes||''}</textarea></div>
+      </div>
+      <div class="doc-field" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+        <div class="doc-label">Status</div>
+        <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
+          <button class="btn ${j.status==='active'?'btn-primary':''}" onclick="toggleStatus(${j.id})">
+            ${j.status==='active'?'● Active (click to disable)':'○ Disabled (click to enable)'}
+          </button>
+          <button class="btn" style="color:var(--red);border-color:var(--red)" onclick="deleteJob(${j.id})">Delete</button>
+        </div>
+      </div>`;
+    return;
+  }
 
   if(activeTab==='code'){
     if(isNoCode){
@@ -1372,62 +1841,76 @@ function renderDetailTab(){
         </div>`;
     }
   } else if(activeTab==='deps'){
-    const deps = j.deps || [];
-    const linkedIds = deps.map(d=>d.jobId);
-    const available = jobs.filter(x=>x.id!==j.id && !linkedIds.includes(x.id));
+    const depsOn   = j.depsOn   || [];   // prerequisites — run BEFORE this job
+    const triggers = j.triggers || [];   // downstream — this job feeds into these
 
-    // Numbered step rows
-    const stepsHTML = deps.length
-      ? deps.map((d,i)=>{
-          const lj=jobs.find(x=>x.id===d.jobId);
-          if(!lj) return '';
-          const tm=TYPE_META[lj.type]||{label:lj.type,color:'#8b949e'};
-          return `<div class="dep-item">
-            <div class="dep-step">${i+1}</div>
-            <div class="dep-info">
-              <div class="dep-name">${esc(lj.name)}</div>
-              <div class="dep-meta" style="color:${tm.color}">${tm.label} &nbsp;·&nbsp; ${lj.env}</div>
-            </div>
-            <div class="dep-actions">
-              ${i>0?`<button class="dep-btn" title="Move up" onclick="moveDep(${j.id},${i},-1)">↑</button>`:'<span style="width:26px;display:inline-block"></span>'}
-              ${i<deps.length-1?`<button class="dep-btn" title="Move down" onclick="moveDep(${j.id},${i},1)">↓</button>`:'<span style="width:26px;display:inline-block"></span>'}
-              <button class="dep-btn danger" title="Remove" onclick="removeDep(${j.id},${i})">✕</button>
-            </div>
-          </div>`;
-        }).join('')
-      : `<div style="font-size:12px;color:var(--text3);padding:10px 0 6px">No steps added yet — use the dropdown below to link jobs in run order.</div>`;
+    const allLinkedIds = [...depsOn.map(d=>d.jobId), ...triggers.map(d=>d.jobId)];
+    const available = jobs.filter(x=>x.id!==j.id && !allLinkedIds.includes(x.id));
 
-    // Add row
-    const addHTML = available.length
-      ? `<div class="dep-add">
-           <select class="dep-select" id="depSelect">
-             <option value="">— Pick a job to add as next step —</option>
+    function depRows(list, listType){
+      if(!list.length) return `<div style="font-size:12px;color:var(--text3);padding:8px 0">None added yet.</div>`;
+      return list.map((d,i)=>{
+        const lj=jobs.find(x=>x.id===d.jobId);
+        if(!lj) return '';
+        const tm=TYPE_META[lj.type]||{label:lj.type,color:'#8b949e'};
+        return `<div class="dep-item">
+          <div class="dep-step">${i+1}</div>
+          <div class="dep-info">
+            <div class="dep-name">${esc(lj.name)}</div>
+            <div class="dep-meta" style="color:${tm.color}">${tm.label} &nbsp;·&nbsp; ${lj.env}</div>
+          </div>
+          <div class="dep-actions">
+            ${i>0?`<button class="dep-btn" title="Move up" onclick="moveDep(${j.id},'${listType}',${i},-1)">↑</button>`:'<span style="width:26px;display:inline-block"></span>'}
+            ${i<list.length-1?`<button class="dep-btn" title="Move down" onclick="moveDep(${j.id},'${listType}',${i},1)">↓</button>`:'<span style="width:26px;display:inline-block"></span>'}
+            <button class="dep-btn danger" title="Remove" onclick="removeDep(${j.id},'${listType}',${i})">✕</button>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    const addRow = available.length
+      ? `<div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
+           <select class="dep-select" id="depSelect" style="flex:1;min-width:180px">
+             <option value="">— Pick a job —</option>
              ${available.map(x=>`<option value="${x.id}">[${TYPE_META[x.type]?.label||x.type}] ${esc(x.name)}</option>`).join('')}
            </select>
-           <button class="btn btn-primary" onclick="addDep(${j.id})">Add step</button>
+           <button class="btn btn-primary" onclick="addDep(${j.id},'depsOn')">+ Depends On</button>
+           <button class="btn" style="border-color:var(--amber);color:var(--amber)" onclick="addDep(${j.id},'triggers')">+ Triggers</button>
          </div>`
-      : `<div style="font-size:12px;color:var(--text3);margin-top:8px">${jobs.length<=1?'No other jobs in registry yet.':'All jobs are already in this chain.'}</div>`;
+      : `<div style="font-size:12px;color:var(--text3);margin-top:8px">No other jobs available to link.</div>`;
 
-    // Flow chain
-    const flowHTML = deps.length
-      ? `<div class="doc-field" style="margin-top:16px">
-           <div class="doc-label" style="margin-bottom:8px">Run order — flow chain</div>
-           <div class="flow-wrap">${buildFlowSVG(j,deps)}</div>
-           <div style="font-size:11px;color:var(--text3);margin-top:6px">Click any box to open that job. Use ↑ ↓ above to reorder steps.</div>
-         </div>`
-      : '';
+    // Flow chain: [depsOn jobs] → [THIS JOB] → [triggers jobs]
+    const hasFlow = depsOn.length || triggers.length;
+    const flowHTML = hasFlow ? `
+      <div class="doc-field" style="margin-top:18px">
+        <div class="doc-label" style="margin-bottom:8px">Pipeline view</div>
+        <div class="flow-wrap">${buildFlowSVG(j, depsOn, triggers)}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:6px">Click any box to open that job.</div>
+      </div>` : '';
 
     body.innerHTML=`
-      <div style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.6">
-        Link other jobs from the registry that this job calls or depends on, in the order they run.
-        For example: a BAT file that runs three SQL scripts — add each SQL job as a step below.
+      <div style="font-size:12px;color:var(--text2);margin-bottom:16px;line-height:1.6">
+        Track what this job depends on and what it feeds into. <strong>Depends On</strong> = must run before this job. <strong>Triggers</strong> = this job's output feeds these.
       </div>
+
       <div class="doc-field">
-        <div class="doc-label" style="margin-bottom:8px">Steps in this job's chain</div>
-        <div class="dep-list">${stepsHTML}</div>
-        ${addHTML}
+        <div class="doc-label" style="margin-bottom:8px;color:var(--blue)">⬆ Depends On — runs before this job</div>
+        <div class="dep-list">${depRows(depsOn,'depsOn')}</div>
       </div>
+
+      <div class="doc-field">
+        <div class="doc-label" style="margin-bottom:8px;color:var(--amber)">⬇ Triggers — this job feeds into</div>
+        <div class="dep-list">${depRows(triggers,'triggers')}</div>
+      </div>
+
+      <div class="doc-field">
+        <div class="doc-label" style="margin-bottom:4px">Add link</div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:6px">Pick a job then choose whether it's a prerequisite or something this job triggers.</div>
+        ${addRow}
+      </div>
+
       ${flowHTML}`;
+
 
   } else if(activeTab==='docs'){
     body.innerHTML=`
@@ -1508,6 +1991,16 @@ function renderDetailTab(){
       <div class="doc-field">
         <div class="doc-label">Job Name</div>
         <div class="doc-value"><input style="background:none;border:none;color:var(--text);font-family:inherit;font-size:13px;font-weight:500;outline:none;width:100%" value="${esc(j.name||'')}" placeholder="Job name" onblur="saveInfoField(${j.id},'name',this.value)"></div>
+      </div>
+      <div class="doc-field">
+        <div class="doc-label">Program / Initiative</div>
+        <div class="doc-value" style="padding:4px 8px;display:flex;align-items:center;gap:10px">
+          <select style="background:none;border:none;color:var(--text);font-family:inherit;font-size:13px;outline:none;flex:1;cursor:pointer" onchange="saveInfoField(${j.id},'program',this.value);renderJobs()">
+            <option value="">— No program —</option>
+            ${Object.entries(PROGRAMS).map(([k,p])=>`<option value="${k}" ${j.program===k?'selected':''}>${p.abbr} — ${p.label}</option>`).join('')}
+          </select>
+          ${j.program ? programBadge(j.program) : ''}
+        </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div class="doc-field">
@@ -1717,90 +2210,88 @@ function copyCode(id){
 }
 
 // ─── DEPENDENCIES ────────────────────────────────────────────────────────────
-function addDep(id){
+function addDep(id, listType){
   const j=jobs.find(x=>x.id===id);
   const sel=document.getElementById('depSelect');
   if(!j||!sel||!sel.value) return;
   const linkedId=parseInt(sel.value);
-  if(!j.deps) j.deps=[];
-  if(j.deps.find(d=>d.jobId===linkedId)) return;
-  j.deps.push({jobId:linkedId});
-  save();
-  renderDetailTab();
+  if(!j[listType]) j[listType]=[];
+  if(j[listType].find(d=>d.jobId===linkedId)) return;
+  j[listType].push({jobId:linkedId});
+  save(); renderDetailTab();
 }
-function removeDep(id,idx){
+function removeDep(id, listType, idx){
   const j=jobs.find(x=>x.id===id);
-  if(!j||!j.deps) return;
-  j.deps.splice(idx,1);
-  save();
-  renderDetailTab();
+  if(!j||!j[listType]) return;
+  j[listType].splice(idx,1);
+  save(); renderDetailTab();
 }
-function moveDep(id,idx,dir){
+function moveDep(id, listType, idx, dir){
   const j=jobs.find(x=>x.id===id);
-  if(!j||!j.deps) return;
+  if(!j||!j[listType]) return;
   const newIdx=idx+dir;
-  if(newIdx<0||newIdx>=j.deps.length) return;
-  const tmp=j.deps[idx]; j.deps[idx]=j.deps[newIdx]; j.deps[newIdx]=tmp;
-  save();
-  renderDetailTab();
+  if(newIdx<0||newIdx>=j[listType].length) return;
+  const tmp=j[listType][idx]; j[listType][idx]=j[listType][newIdx]; j[listType][newIdx]=tmp;
+  save(); renderDetailTab();
 }
 
-function buildFlowSVG(parent, deps){
-  // Build node list: parent first, then linked jobs in order
-  const allNodes = [parent, ...deps.map(d=>jobs.find(x=>x.id===d.jobId)).filter(Boolean)];
-  const BOX_W=160, BOX_H=52, GAP=40, PAD=20;
+function buildFlowSVG(thisJob, depsOn, triggers){
+  // Layout: [depsOn nodes] → [THIS JOB] → [triggers nodes]
+  const depsOnJobs   = (depsOn||[]).map(d=>jobs.find(x=>x.id===d.jobId)).filter(Boolean);
+  const triggersJobs = (triggers||[]).map(d=>jobs.find(x=>x.id===d.jobId)).filter(Boolean);
+  const allNodes = [...depsOnJobs, thisJob, ...triggersJobs];
+  const thisIdx  = depsOnJobs.length; // index of the center "this" node
+
+  const BOX_W=155, BOX_H=52, GAP=36, PAD=16;
   const totalW = allNodes.length*(BOX_W+GAP)-GAP + PAD*2;
-  const H=BOX_H+PAD*2+30;
+  const H = BOX_H + PAD*2 + 30;
 
   const nodes = allNodes.map((j,i)=>{
     const x=PAD+i*(BOX_W+GAP);
     const y=PAD+15;
-    const tm=TYPE_META[j.type]||{label:j.type,color:'#8b949e',bg:'rgba(139,148,158,.15)'};
-    const label = j.name.length>20 ? j.name.slice(0,19)+'…' : j.name;
-    const isParent = i===0;
-    return {x,y,label,color:tm.color,bg:tm.bg,typeLabel:tm.label,isParent};
+    const tm=TYPE_META[j.type]||{label:j.type||'',color:'#8b949e',bg:'rgba(139,148,158,.15)'};
+    const label = j.name.length>19 ? j.name.slice(0,18)+'…' : j.name;
+    const isThis = i===thisIdx;
+    const isDep  = i<thisIdx;
+    return {x,y,label,color:tm.color,bg:tm.bg,typeLabel:tm.label,isThis,isDep,id:j.id};
   });
 
   const arrows = nodes.slice(0,-1).map((_,i)=>{
-    const x1=nodes[i].x+BOX_W;
-    const x2=nodes[i+1].x;
+    const x1=nodes[i].x+BOX_W, x2=nodes[i+1].x;
     const y=nodes[i].y+BOX_H/2;
-    return `<line x1="${x1}" y1="${y}" x2="${x2-6}" y2="${y}" stroke="var(--border2)" stroke-width="1.5" marker-end="url(#arr)"/>`;
+    const color = nodes[i].isThis ? '#d29922' : nodes[i+1].isThis ? '#58a6ff' : '#444c56';
+    return `<line x1="${x1}" y1="${y}" x2="${x2-6}" y2="${y}" stroke="${color}" stroke-width="1.5" marker-end="url(#arr${nodes[i].isThis?'out':'in'})"/>`;
   }).join('');
 
-  const boxes = nodes.map((n,i)=>`
-    <g style="cursor:pointer" onclick="openDetail(${allNodes[i].id})">
+  const boxes = nodes.map((n,i)=>{
+    const fillColor = n.isThis?'rgba(88,166,255,.12)': n.isDep?'rgba(63,185,80,.08)':'rgba(210,153,34,.08)';
+    const strokeColor = n.isThis?'#58a6ff': n.isDep?'#3fb950':'#d29922';
+    const label2 = n.isThis?'(this job)': n.isDep?'prerequisite':'triggers';
+    return `<g style="cursor:pointer" onclick="openDetail(${n.id})">
       <rect x="${n.x}" y="${n.y}" width="${BOX_W}" height="${BOX_H}" rx="6"
-        fill="${n.isParent?'rgba(88,166,255,.12)':n.bg}"
-        stroke="${n.isParent?'#58a6ff':n.color}" stroke-width="${n.isParent?1.5:1}"/>
-      <text x="${n.x+BOX_W/2}" y="${n.y+16}" text-anchor="middle"
-        font-family="DM Sans,sans-serif" font-size="10" fill="${n.color}" font-weight="600">
-        ${n.typeLabel}${n.isParent?' (this)':''}
-      </text>
-      <text x="${n.x+BOX_W/2}" y="${n.y+32}" text-anchor="middle"
-        font-family="DM Sans,sans-serif" font-size="11.5" fill="#e6edf3" font-weight="500">
-        ${n.label}
-      </text>
-      <text x="${n.x+BOX_W/2}" y="${n.y+46}" text-anchor="middle"
+        fill="${fillColor}" stroke="${strokeColor}" stroke-width="${n.isThis?1.5:1}"/>
+      <text x="${n.x+BOX_W/2}" y="${n.y+15}" text-anchor="middle"
+        font-family="DM Sans,sans-serif" font-size="10" fill="${n.isThis?'#58a6ff':n.isDep?'#3fb950':'#d29922'}" font-weight="600">
+        ${n.typeLabel||''}</text>
+      <text x="${n.x+BOX_W/2}" y="${n.y+31}" text-anchor="middle"
+        font-family="DM Sans,sans-serif" font-size="11" fill="#e6edf3" font-weight="500">
+        ${n.label}</text>
+      <text x="${n.x+BOX_W/2}" y="${n.y+45}" text-anchor="middle"
         font-family="DM Sans,sans-serif" font-size="10" fill="#6e7681">
-        Step ${i===0?'—':i}
-      </text>
-    </g>`).join('');
-
-  const stepNums = nodes.map((n,i)=>i===0?'':`
-    <text x="${n.x+BOX_W/2}" y="${n.y-4}" text-anchor="middle"
-      font-family="DM Sans,sans-serif" font-size="10" fill="#6e7681">
-    </text>`).join('');
+        ${label2}</text>
+    </g>`;
+  }).join('');
 
   return `<svg width="${totalW}" height="${H}" viewBox="0 0 ${totalW} ${H}" xmlns="http://www.w3.org/2000/svg">
     <defs>
-      <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-        <path d="M2 1L8 5L2 9" fill="none" stroke="#444c56" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <marker id="arrin" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M2 1L8 5L2 9" fill="none" stroke="#3fb950" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </marker>
+      <marker id="arrout" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M2 1L8 5L2 9" fill="none" stroke="#d29922" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
       </marker>
     </defs>
-    ${arrows}
-    ${boxes}
-    ${stepNums}
+    ${arrows}${boxes}
   </svg>`;
 }
 
@@ -2082,45 +2573,109 @@ function toggleModalFields(){
   }
 }
 function openModal(){
+  const sec = currentFilter.section || 'job';
+  // Update title and save button
+  const titles = {job:'Add New Job', interface:'Add New Interface', doc:'Add New Document'};
+  const saveBtns = {job:'Save Job', interface:'Save Interface', doc:'Save Document'};
+  document.getElementById('modalTitle').textContent = titles[sec] || 'Add New Job';
+  document.getElementById('modalSaveBtn').textContent = saveBtns[sec] || 'Save Job';
+  document.getElementById('f-name-label').textContent = sec==='interface' ? 'Interface Name *' : sec==='doc' ? 'Document Title *' : 'Job Name *';
+
+  // Show/hide section-specific fields
+  document.getElementById('modal-job-fields').style.display       = sec==='job'       ? 'block' : 'none';
+  document.getElementById('modal-interface-fields').style.display = sec==='interface' ? 'block' : 'none';
+  document.getElementById('modal-doc-fields').style.display       = sec==='doc'       ? 'block' : 'none';
+
+  // Populate program dropdown
+  const sel = document.getElementById('f-program');
+  sel.innerHTML = '<option value="">— No program —</option>' +
+    Object.entries(PROGRAMS).map(([k,p])=>`<option value="${k}">${p.abbr} — ${p.label}</option>`).join('');
+
+  // Populate type dropdown for job section
+  if(sec==='job') toggleModalFields();
+
   document.getElementById('modalOverlay').classList.add('open');
-  toggleModalFields();
 }
 function closeModal(){
   document.getElementById('modalOverlay').classList.remove('open');
-  ['f-name','f-desc','f-purpose','f-owner','f-customer','f-customerContact','f-server','f-code','f-notes','f-tags','f-workflowPath','f-inputSources','f-outputTargets','f-alteryxVersion'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el) el.value='';
+  ['f-name','f-desc','f-purpose','f-owner','f-customer','f-customerContact','f-server',
+   'f-code','f-notes','f-tags','f-workflowPath','f-inputSources','f-outputTargets','f-alteryxVersion',
+   'f-ifaceSource','f-ifaceTarget','f-ifacePath','f-ifaceNotes',
+   'f-docLink','f-docRelated','f-docContent','f-docAuthor'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
   });
-  document.getElementById('f-type').value='SQL';
+  ['f-program','f-ifaceDirection','f-ifaceFormat','f-ifaceFreq','f-docType'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  const fd=document.getElementById('f-docReviewed'); if(fd) fd.value='';
+  const fp=document.getElementById('f-program'); if(fp) fp.value='';
   resetModalScheduler();
   toggleModalFields();
 }
 function saveJob(){
   const name=document.getElementById('f-name').value.trim();
   if(!name){alert('Job name is required.');return;}
-  const type = document.getElementById('f-type').value;
-  const isNoCode = TYPE_META[type]?.noCode;
-  const newJob={
+  const sec = currentFilter.section || 'job';
+  const shared = {
     id: Date.now(),
     name,
-    desc:     document.getElementById('f-desc').value.trim(),
-    purpose:  document.getElementById('f-purpose').value.trim(),
-    type,
-    env:      document.getElementById('f-env').value,
-    schedule: getModalScheduleStr(),
-    owner:    document.getElementById('f-owner').value.trim(),
-    customer: document.getElementById('f-customer').value.trim(),
-    customerContact: document.getElementById('f-customerContact').value.trim(),
-    server:   document.getElementById('f-server').value.trim(),
-    code:     isNoCode ? '' : document.getElementById('f-code').value,
-    workflowPath:   isNoCode ? document.getElementById('f-workflowPath').value.trim() : '',
-    inputSources:   isNoCode ? document.getElementById('f-inputSources').value.trim() : '',
-    outputTargets:  isNoCode ? document.getElementById('f-outputTargets').value.trim() : '',
-    alteryxVersion: isNoCode ? document.getElementById('f-alteryxVersion').value.trim() : '',
-    notes:    document.getElementById('f-notes').value.trim(),
-    tags:     document.getElementById('f-tags').value.split(',').map(t=>t.trim()).filter(Boolean),
-    status:   'active',
+    desc:    document.getElementById('f-desc').value.trim(),
+    env:     document.getElementById('f-env').value,
+    owner:   document.getElementById('f-owner').value.trim(),
+    customer:document.getElementById('f-customer').value.trim(),
+    program: document.getElementById('f-program')?.value||'',
+    status:  'active',
+    recordSection: sec,
   };
+
+  let newJob;
+  if(sec==='interface'){
+    const dir = document.getElementById('f-ifaceDirection').value;
+    if(!dir){ alert('Direction is required.'); return; }
+    newJob = { ...shared,
+      type:'EPICINTERFACE',
+      ifaceDirection: dir,
+      ifaceFormat:    document.getElementById('f-ifaceFormat').value,
+      ifaceSource:    document.getElementById('f-ifaceSource').value.trim(),
+      ifaceTarget:    document.getElementById('f-ifaceTarget').value.trim(),
+      ifaceFreq:      document.getElementById('f-ifaceFreq').value,
+      ifacePath:      document.getElementById('f-ifacePath').value.trim(),
+      notes:          document.getElementById('f-ifaceNotes').value.trim(),
+      schedule: document.getElementById('f-ifaceFreq').value,
+      tags:[], code:'', server:'',
+    };
+  } else if(sec==='doc'){
+    const docType = document.getElementById('f-docType').value;
+    if(!docType){ alert('Document Type is required.'); return; }
+    newJob = { ...shared,
+      type:'DOC',
+      docType,
+      docLink:     document.getElementById('f-docLink').value.trim(),
+      docRelated:  document.getElementById('f-docRelated').value.trim(),
+      docContent:  document.getElementById('f-docContent').value.trim(),
+      docAuthor:   document.getElementById('f-docAuthor').value.trim(),
+      docReviewed: document.getElementById('f-docReviewed').value,
+      notes:'', tags:[], code:'', server:'', schedule:'',
+    };
+  } else {
+    const type = document.getElementById('f-type').value;
+    const isNoCode = TYPE_META[type]?.noCode;
+    newJob = { ...shared,
+      type,
+      purpose:  document.getElementById('f-purpose').value.trim(),
+      schedule: getModalScheduleStr(),
+      customerContact: document.getElementById('f-customerContact').value.trim(),
+      server:   document.getElementById('f-server').value.trim(),
+      code:     isNoCode ? '' : document.getElementById('f-code').value,
+      workflowPath:   isNoCode ? document.getElementById('f-workflowPath').value.trim() : '',
+      inputSources:   isNoCode ? document.getElementById('f-inputSources').value.trim() : '',
+      outputTargets:  isNoCode ? document.getElementById('f-outputTargets').value.trim() : '',
+      alteryxVersion: isNoCode ? document.getElementById('f-alteryxVersion').value.trim() : '',
+      notes:    document.getElementById('f-notes').value.trim(),
+      tags:     document.getElementById('f-tags').value.split(',').map(t=>t.trim()).filter(Boolean),
+    };
+  }
+
   jobs.unshift(newJob);
   save();
   closeModal();
@@ -2148,6 +2703,7 @@ function showApp(){
   const al=document.getElementById('adminLink');
   if(al) al.style.display=s.isAdmin?'flex':'none';
   renderTypesUI();
+  renderProgramsSidebar();
   renderJobs();
 }
 function showAuth(){
@@ -2308,6 +2864,150 @@ function removeUsr(email){
   if(!confirm('Remove this user? They will no longer be able to sign in.')) return;
   saveUsers(getUsers().filter(u=>u.email!==email));
   renderAdmin();
+}
+
+// ─── PROGRAM MANAGER ─────────────────────────────────────────────────────────
+let _editingProgKey = null;
+const PROG_COLORS = [
+  '#58a6ff','#bc8cff','#f0883e','#3fb950','#f85149',
+  '#d29922','#00a6e0','#52cc74','#0082b3','#e06c75',
+  '#56b6c2','#c678dd','#61afef','#98c379','#e5c07b',
+  '#abb2bf','#d19a66','#be5046',
+];
+
+function openProgramsMgr(){
+  _editingProgKey = null;
+  resetProgForm();
+  renderProgColorGrid('#58a6ff');
+  renderProgList();
+  document.getElementById('programsMgrOverlay').style.display='flex';
+}
+function closeProgramsMgr(){ document.getElementById('programsMgrOverlay').style.display='none'; }
+
+function renderProgColorGrid(selected){
+  document.getElementById('progColorGrid').innerHTML = PROG_COLORS.map(c=>`
+    <div class="color-opt ${c===selected?'selected':''}"
+         style="background:${c}"
+         onclick="selectProgColor('${c}',this)"
+         title="${c}"></div>`).join('');
+  document.getElementById('prog-color').value = selected;
+}
+function selectProgColor(c, el){
+  document.querySelectorAll('#progColorGrid .color-opt').forEach(o=>o.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('prog-color').value = c;
+}
+
+function renderProgList(){
+  const list = document.getElementById('progList');
+  const entries = Object.entries(PROGRAMS);
+  if(!entries.length){ list.innerHTML='<div style="font-size:12px;color:var(--text3)">No programs yet.</div>'; return; }
+  list.innerHTML = entries.map(([k,p])=>{
+    const isDefault = !!DEFAULT_PROGRAMS[k];
+    const inUse = jobs.filter(j=>j.program===k).length;
+    return `<div class="type-row">
+      <div class="type-swatch" style="background:${p.color}"></div>
+      <div class="type-row-label">
+        <span class="prog-badge" style="color:${p.color};background:rgba(0,0,0,.2);border:1px solid ${p.color}22">${p.abbr}</span>
+        <span style="margin-left:6px">${esc(p.label)}</span>
+        ${isDefault?'<span style="font-size:10px;color:var(--text3);margin-left:4px">built-in</span>':''}
+        ${inUse?`<span style="font-size:10px;color:var(--text3);margin-left:4px">${inUse} job${inUse>1?'s':''}</span>`:''}
+      </div>
+      <div class="type-row-btns">
+        <button class="btn" style="font-size:11px;padding:3px 9px" onclick="editProgram('${k}')">Edit</button>
+        ${!isDefault
+          ? `<button class="btn" style="font-size:11px;padding:3px 9px;color:var(--red);border-color:var(--red)" onclick="deleteProgram('${k}')">Delete</button>`
+          : `<span style="font-size:11px;color:var(--text3);padding:3px 6px">no delete</span>`}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function editProgram(key){
+  const p = PROGRAMS[key];
+  if(!p) return;
+  _editingProgKey = key;
+  document.getElementById('prog-label').value = p.label;
+  document.getElementById('prog-abbr').value  = key;
+  document.getElementById('prog-abbr').disabled = true;
+  renderProgColorGrid(p.color);
+  document.getElementById('progFormTitle').textContent = `Edit — ${p.label}`;
+  document.getElementById('prog-err').style.display='none';
+  document.getElementById('prog-label').scrollIntoView({behavior:'smooth',block:'nearest'});
+  document.getElementById('prog-label').focus();
+}
+
+function resetProgForm(){
+  _editingProgKey = null;
+  document.getElementById('prog-label').value = '';
+  document.getElementById('prog-abbr').value  = '';
+  document.getElementById('prog-abbr').disabled = false;
+  renderProgColorGrid('#58a6ff');
+  document.getElementById('progFormTitle').textContent = 'Add new program';
+  document.getElementById('prog-err').style.display='none';
+}
+
+function saveProgram(){
+  const label = (document.getElementById('prog-label').value||'').trim();
+  const key   = (document.getElementById('prog-abbr').value||'').trim().toUpperCase();
+  const color = document.getElementById('prog-color').value||'#8b949e';
+  const errEl = document.getElementById('prog-err');
+  errEl.style.display='none';
+
+  if(!label){ errEl.textContent='Name is required.'; errEl.style.display='block'; return; }
+  if(!key){   errEl.textContent='Abbreviation is required.'; errEl.style.display='block'; return; }
+  if(!/^[A-Z0-9]+$/.test(key)){ errEl.textContent='Abbreviation must be letters and numbers only.'; errEl.style.display='block'; return; }
+
+  const isNew = !_editingProgKey;
+  if(isNew && PROGRAMS[key]){ errEl.textContent=`"${key}" already exists.`; errEl.style.display='block'; return; }
+
+  const saveKey = _editingProgKey || key;
+  const custom  = getCustomPrograms();
+
+  // For built-in edits, store override; for custom, store full record
+  custom[saveKey] = { label, abbr: saveKey, color };
+  saveCustomPrograms(custom);
+  PROGRAMS = buildPrograms();
+  renderProgList();
+  renderProgramsSidebar();
+  resetProgForm();
+  renderJobs();
+  updateCounts();
+}
+
+function deleteProgram(key){
+  if(DEFAULT_PROGRAMS[key]){ return; }
+  const inUse = jobs.filter(j=>j.program===key).length;
+  const msg = inUse
+    ? `"${PROGRAMS[key]?.label||key}" is used by ${inUse} job(s). Those jobs will lose their program tag. Delete anyway?`
+    : `Delete program "${PROGRAMS[key]?.label||key}"?`;
+
+  // Inline confirm
+  const list = document.getElementById('progList');
+  const existing = document.getElementById('progDeleteConfirm');
+  if(existing) existing.remove();
+  list.insertAdjacentHTML('afterbegin', `
+    <div id="progDeleteConfirm" style="background:var(--red-bg);border:1px solid var(--red);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px">
+      <div style="font-size:13px;font-weight:500;color:var(--red);margin-bottom:6px">Confirm delete</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:10px">${msg}</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn" style="font-size:12px;padding:4px 12px;color:var(--red);border-color:var(--red)" onclick="confirmDeleteProgram('${key}')">Yes, delete</button>
+        <button class="btn" style="font-size:12px;padding:4px 12px" onclick="document.getElementById('progDeleteConfirm').remove()">Cancel</button>
+      </div>
+    </div>`);
+}
+function confirmDeleteProgram(key){
+  const custom = getCustomPrograms();
+  delete custom[key];
+  saveCustomPrograms(custom);
+  PROGRAMS = buildPrograms();
+  // Clear from any jobs using it
+  jobs.forEach(j=>{ if(j.program===key) j.program=''; });
+  save();
+  renderProgList();
+  renderProgramsSidebar();
+  renderJobs();
+  updateCounts();
 }
 
 // ─── TYPE MANAGER ────────────────────────────────────────────────────────────
@@ -2900,6 +3600,8 @@ function sendGAI(){
 
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
+// Migrate old j.deps → j.depsOn for backwards compatibility
+jobs.forEach(j=>{ if(j.deps&&j.deps.length&&!j.depsOn){ j.depsOn=j.deps; delete j.deps; save(); } });
 if(getSession()){ showApp(); } else { showAuth(); }
 </script>
 </body>
